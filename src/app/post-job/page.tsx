@@ -132,20 +132,28 @@ export default function PostJobForm() {
         return;
     }
     try {
-        // Ensure salary fields are numbers or null before sending
+        // Explicitly map form values to database columns
+        // This improves clarity and helps prevent issues if form field names diverge from DB columns
         const dataToInsert = {
-            ...values,
+            title: values.title,
+            company_name: values.company_name, // Ensure this matches the DB column name exactly
+            location: values.location,
+            description: values.description,
+            application_instructions: values.application_instructions,
+            employment_type: values.employment_type,
+            experience_level: values.experience_level,
             salary_min: values.salary_min ?? null, // Convert undefined to null for DB
             salary_max: values.salary_max ?? null, // Convert undefined to null for DB
+            salary_currency: values.salary_currency,
             expires_at: values.expires_at?.toISOString() ?? null, // Convert Date to ISO string or null
         };
 
-        console.log("Submitting values:", dataToInsert); // Log data being sent
+        console.log("Submitting values to Supabase:", dataToInsert); // Log data being sent
 
         // Call Supabase insert
         const { data, error } = await supabase
             .from('job_postings')
-            .insert([dataToInsert])
+            .insert([dataToInsert]) // Use the explicitly mapped object
             .select() // Add select() to potentially get more info on error or success
             .single(); // Assuming we expect one row back on success, adjust if needed
 
@@ -167,9 +175,9 @@ export default function PostJobForm() {
             toast({
               title: "Error Posting Job",
               // Provide a more informative default message and include the code if possible
-              description: `Failed to post job. ${error.message || 'Please check console for details.'} ${error.code ? `(Code: ${error.code})` : ''}. Ensure RLS allows anonymous inserts if needed.`,
+              description: `Failed to post job. ${error.message || 'Check console.'} ${error.code ? `(Code: ${error.code})` : ''}. Please verify your Supabase table schema and column names (e.g., 'company_name'). Also check RLS permissions.`,
               variant: "destructive",
-              duration: 9000, // Keep toast longer
+              duration: 10000, // Keep toast longer
             });
              setIsSubmitting(false);
              return; // Exit the function on error
