@@ -62,18 +62,18 @@ const formSchema = z.object({
   employment_type: z.enum(employmentTypes, {
     required_error: 'Please select an employment type.'
   }),
-   // Accept string input, transform to number or null, refine for positive values
+   // Accept string input, transform to number or undefined, refine for positive values
   salary_min: z.preprocess(
-    (val) => (val === "" ? undefined : Number(val)),
+    (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)), // Handle empty string, null, undefined
     z.number({ invalid_type_error: "Must be a number" }).positive({ message: "Must be positive" }).optional()
   ),
   salary_max: z.preprocess(
-    (val) => (val === "" ? undefined : Number(val)),
+    (val) => (val === "" || val === null || val === undefined ? undefined : Number(val)), // Handle empty string, null, undefined
     z.number({ invalid_type_error: "Must be a number" }).positive({ message: "Must be positive" }).optional()
   ),
   salary_currency: z.enum(salaryCurrencies).default('USD'),
   experience_level: z.enum(experienceLevels, { required_error: 'Please select an experience level.' }),
-  expires_at: z.date({ required_error: 'Please select an expiration date.' }).optional(), // Made optional for testing initial state
+  expires_at: z.date({ required_error: 'Please select an expiration date.' }).optional(), // Optional expiration date
 }).refine(data => {
     // If both min and max salary are provided, max must be greater than or equal to min
     if (data.salary_min !== undefined && data.salary_max !== undefined) {
@@ -94,8 +94,11 @@ export default function PostJobForm() {
 
   // Initialize Supabase client only on the client side
   useEffect(() => {
-    setSupabase(getSupabaseBrowserClient());
-    setClientInitialized(true); // Mark client as initialized
+    // Ensure this runs only in the browser
+    if (typeof window !== 'undefined') {
+        setSupabase(getSupabaseBrowserClient());
+        setClientInitialized(true); // Mark client as initialized
+    }
   }, []);
 
 
@@ -143,14 +146,21 @@ export default function PostJobForm() {
 
         const { error } = await supabase
             .from('job_postings')
-            .insert([dataToInsert]);
+            .insert([dataToInsert]); // Using .insert([data]) which is standard
 
         if (error) {
-            console.error('Supabase insert error:', error);
+             // Enhanced Error Logging
+             console.error('Supabase insert error:', {
+                message: error.message,
+                details: error.details,
+                hint: error.hint,
+                code: error.code,
+             });
             toast({
               title: "Error Posting Job",
-              description: `Failed to post job: ${error.message}. Please try again.`,
+              description: `Failed to post job: ${error.message}. Check console for details. Ensure RLS allows anonymous inserts if needed.`, // Added RLS hint
               variant: "destructive",
+              duration: 9000, // Keep toast longer
             });
              setIsSubmitting(false);
              return;
@@ -174,25 +184,26 @@ export default function PostJobForm() {
     }
   }
 
-  // Log form state changes for debugging
-  React.useEffect(() => {
-    const subscription = form.watch((value, { name, type }) => {
-      // console.log("Form changed:", value, name, type);
-       // console.log("Form errors:", form.formState.errors);
-    });
-    return () => subscription.unsubscribe();
-  }, [form]);
+  // // Log form state changes for debugging (Optional)
+  // React.useEffect(() => {
+  //   const subscription = form.watch((value, { name, type }) => {
+  //      console.log("Form values:", value);
+  //      console.log("Form errors:", form.formState.errors);
+  //   });
+  //   return () => subscription.unsubscribe();
+  // }, [form]);
 
 
   return (
     <Card className="max-w-2xl mx-auto shadow-md">
       <CardHeader>
         <CardTitle className="text-2xl font-bold text-center text-primary">
-          {clientInitialized && !supabase ? 'Error' : 'Post a New Job'}
+          {/* Render title/error based on client initialization state */}
+          {clientInitialized ? (supabase ? 'Post a New Job' : 'Connection Error') : 'Loading Form...'}
         </CardTitle>
          {clientInitialized && !supabase && (
             <CardDesc className="text-center text-destructive">
-                 Could not connect to the database.
+                 Could not initialize connection to the database. Please check setup.
             </CardDesc>
          )}
       </CardHeader>
@@ -204,13 +215,15 @@ export default function PostJobForm() {
               <AlertDescription>Supabase client could not be initialized. Please check your environment variables (e.g., `.env.local`) and ensure the application has browser access.</AlertDescription>
             </Alert>
          ) : !clientInitialized ? (
-            // Optional: Show a loading state while client initializes
-             <div className="flex justify-center items-center py-10">
+            // Show a loading state while client initializes
+             <div className="flex flex-col items-center justify-center py-10 space-y-2">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                <p className="text-muted-foreground text-sm">Initializing...</p>
              </div>
          ) : (
            // Render the form only if client is initialized and supabase exists
             <Form {...form}>
+              {/* Added error logging for submit handler */}
               <form onSubmit={form.handleSubmit(onSubmit, (errors) => console.log("Form validation errors:", errors))} className="space-y-6">
                 {/* Basic Info */}
                 <FormField
@@ -220,7 +233,8 @@ export default function PostJobForm() {
                     <FormItem>
                       <FormLabel>Job Title</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Software Engineer" {...field} aria-required="true" />
+                         {/* Ensure value is always a string */}
+                        <Input placeholder="e.g., Software Engineer" {...field} value={field.value ?? ''} aria-required="true" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -233,7 +247,7 @@ export default function PostJobForm() {
                     <FormItem>
                       <FormLabel>Company Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., Tech Corp" {...field} aria-required="true"/>
+                        <Input placeholder="e.g., Tech Corp" {...field} value={field.value ?? ''} aria-required="true"/>
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -246,7 +260,7 @@ export default function PostJobForm() {
                     <FormItem>
                       <FormLabel>Location</FormLabel>
                       <FormControl>
-                        <Input placeholder="e.g., New York, NY or Remote" {...field} aria-required="true"/>
+                        <Input placeholder="e.g., New York, NY or Remote" {...field} value={field.value ?? ''} aria-required="true"/>
                       </FormControl>
                        <FormDescription>
                           Specify the city, state, or "Remote".
@@ -267,6 +281,7 @@ export default function PostJobForm() {
                           placeholder="Describe the role, responsibilities, and qualifications..."
                           className="min-h-[150px]"
                           {...field}
+                           value={field.value ?? ''}
                           aria-required="true"
                         />
                       </FormControl>
@@ -285,6 +300,7 @@ export default function PostJobForm() {
                           placeholder="Explain how candidates should apply (e.g., link to application portal, email address)."
                           className="min-h-[100px]"
                           {...field}
+                          value={field.value ?? ''}
                           aria-required="true"
                         />
                       </FormControl>
@@ -348,13 +364,13 @@ export default function PostJobForm() {
                       <FormItem>
                         <FormLabel>Salary Min (Optional)</FormLabel>
                         <FormControl>
-                           {/* Ensure value is always a string or empty string */}
+                           {/* Ensure value is always a string for the input */}
                            <Input
                             type='number'
                             placeholder="e.g., 50000"
                             {...field}
                             value={field.value ?? ''} // Use empty string for undefined/null
-                            onChange={(e) => field.onChange(e.target.value)} // Pass string value
+                            onChange={(e) => field.onChange(e.target.value === '' ? undefined : e.target.value)} // Pass string value or undefined
                            />
                         </FormControl>
                         <FormMessage />
@@ -368,13 +384,13 @@ export default function PostJobForm() {
                       <FormItem>
                         <FormLabel>Salary Max (Optional)</FormLabel>
                         <FormControl>
-                            {/* Ensure value is always a string or empty string */}
+                            {/* Ensure value is always a string for the input */}
                             <Input
                                 type='number'
                                 placeholder="e.g., 100000"
                                 {...field}
                                 value={field.value ?? ''} // Use empty string for undefined/null
-                                onChange={(e) => field.onChange(e.target.value)} // Pass string value
+                                onChange={(e) => field.onChange(e.target.value === '' ? undefined : e.target.value)} // Pass string value or undefined
                             />
                         </FormControl>
                         <FormMessage />
@@ -435,20 +451,25 @@ export default function PostJobForm() {
                                     mode="single"
                                     selected={field.value}
                                     onSelect={field.onChange}
-                                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} // Disable past dates only
+                                    // Disable dates strictly before today (midnight)
+                                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))}
                                     initialFocus
                                 />
                             </PopoverContent>
                         </Popover>
                         <FormDescription>
-                            The date this job posting will expire.
+                            The date this job posting will expire (optional).
                         </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 {/* Submit Button */}
-                <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting || !clientInitialized}>
+                <Button
+                    type="submit"
+                    className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
+                    disabled={isSubmitting || !clientInitialized || !supabase} // Disable if submitting or client not ready
+                >
                   {isSubmitting ? (
                     <>
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />

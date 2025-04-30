@@ -1,41 +1,43 @@
 
-import { createBrowserClient } from '@supabase/ssr';
-import { type SupabaseClient } from '@supabase/supabase-js';
+import { createBrowserClient } from '@supabase/ssr'
+import { type SupabaseClient } from '@supabase/supabase-js'
 
-let client: SupabaseClient | undefined;
-
-export function getSupabaseBrowserClient() {
-  // Check if running in a browser environment before accessing process.env
-  if (typeof window !== 'undefined') {
-    if (client) {
-      return client;
+// Use a function to ensure environment variables are accessed at runtime
+function createSupabaseClient(): SupabaseClient | null {
+    // Ensure this code runs only in the browser
+    if (typeof window === 'undefined') {
+        console.warn('Supabase client should only be initialized in the browser.');
+        return null;
     }
 
-    // Retrieve Supabase URL and Anon Key directly from process.env
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-    // Validate that environment variables are set
     if (!supabaseUrl || !supabaseAnonKey) {
-      console.error(
-        'Missing Supabase environment variables (NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY). Check your .env.local file.'
-      );
-      // Optionally, throw an error or return null/undefined to indicate failure
-      // throw new Error('Supabase environment variables are not set.');
-      return undefined; // Return undefined if keys are missing
+        console.error(
+          'Supabase URL or Anon Key is missing. Make sure NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY are set in your .env.local file.'
+        );
+        // Optionally return null or throw an error, depending on desired behavior
+        return null; // Return null if credentials are missing
     }
 
     try {
-      client = createBrowserClient(supabaseUrl, supabaseAnonKey);
-      return client;
+        // Create and return the Supabase client instance
+        return createBrowserClient(supabaseUrl, supabaseAnonKey);
     } catch (error) {
-      console.error('Error creating Supabase client:', error);
-      // Optionally handle the error more gracefully
-      return undefined; // Return undefined on creation error
+        console.error('Error creating Supabase client:', error);
+        return null; // Return null on creation error
     }
-  }
+}
 
-  // If not in a browser environment, return undefined or handle accordingly
-  // console.warn('getSupabaseBrowserClient called outside of browser environment.');
-  return undefined;
+// Singleton pattern: Ensure only one client instance is created
+let clientInstance: SupabaseClient | null | undefined = undefined;
+
+export function getSupabaseBrowserClient(): SupabaseClient | null {
+    // If the instance hasn't been created yet, try to create it
+    if (clientInstance === undefined) {
+        clientInstance = createSupabaseClient();
+    }
+    // Return the existing instance (which might be null if creation failed)
+    return clientInstance;
 }
