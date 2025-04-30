@@ -143,37 +143,47 @@ export default function PostJobForm() {
 
         console.log("Submitting values:", dataToInsert); // Log data being sent
 
-
-        const { error } = await supabase
+        // Call Supabase insert
+        const { data, error } = await supabase
             .from('job_postings')
-            .insert([dataToInsert]); // Using .insert([data]) which is standard
+            .insert([dataToInsert])
+            .select() // Add select() to potentially get more info on error or success
+            .single(); // Assuming we expect one row back on success, adjust if needed
+
 
         if (error) {
-             // Enhanced Error Logging
-             console.error('Supabase insert error:', {
-                message: error.message,
-                details: error.details,
-                hint: error.hint,
-                code: error.code,
+             // Log the raw error object first to inspect its structure
+             console.error('Raw Supabase insert error object:', error);
+
+             // Log specific details if available, guarding against undefined/null
+             console.error('Supabase insert error details:', {
+                message: error?.message ?? 'No message available',
+                details: error?.details ?? 'No details available',
+                hint: error?.hint ?? 'No hint available',
+                code: error?.code ?? 'No code available',
              });
+
             toast({
               title: "Error Posting Job",
-              description: `Failed to post job: ${error.message}. Check console for details. Ensure RLS allows anonymous inserts if needed.`, // Added RLS hint
+              // Provide a more informative default message and include the code if possible
+              description: `Failed to post job. ${error.message || 'Please check console for details.'} ${error.code ? `(Code: ${error.code})` : ''}. Ensure RLS allows anonymous inserts if needed.`,
               variant: "destructive",
               duration: 9000, // Keep toast longer
             });
              setIsSubmitting(false);
-             return;
+             return; // Exit the function on error
         }
 
+        // Success path
+        console.log("Job posted successfully:", data); // Log success data
         toast({
             title: "Success!",
             description: "Your job posting has been submitted.",
             variant: "default",
         });
         form.reset(); // Reset form to default values
-    } catch (err: any) {
-         console.error('Submit error:', err);
+    } catch (err: any) { // Catch unexpected errors during the submission process
+         console.error('Submit function catch block error:', err);
         toast({
             title: "Submission Error",
             description: err.message || 'An unexpected error occurred while posting the job.',
@@ -197,10 +207,10 @@ export default function PostJobForm() {
   return (
     <Card className="max-w-2xl mx-auto shadow-md">
       <CardHeader>
+         {/* Conditional Rendering based on client initialization */}
         <CardTitle className="text-2xl font-bold text-center text-primary">
-          {/* Render title/error based on client initialization state */}
-          {clientInitialized ? (supabase ? 'Post a New Job' : 'Connection Error') : 'Loading Form...'}
-        </CardTitle>
+           {clientInitialized ? (supabase ? 'Post a New Job' : 'Connection Error') : 'Loading Form...'}
+         </CardTitle>
          {clientInitialized && !supabase && (
             <CardDesc className="text-center text-destructive">
                  Could not initialize connection to the database. Please check setup.
@@ -487,4 +497,3 @@ export default function PostJobForm() {
     </Card>
   );
 }
-
