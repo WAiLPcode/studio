@@ -1,3 +1,4 @@
+
 'use client';
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -15,7 +16,7 @@ import {
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription as CardDesc } from '@/components/ui/card'; // Aliased CardDescription
 import {
   Select,
   SelectContent,
@@ -25,7 +26,7 @@ import {
 } from "@/components/ui/select";
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useToast } from "@/hooks/use-toast";
-import { useState } from 'react';
+import { useState, useEffect } from 'react'; // Added useEffect
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
@@ -85,20 +86,18 @@ const formSchema = z.object({
 });
 
 export default function PostJobForm() {
-  const supabase = getSupabaseBrowserClient();
+  // Use state to manage the Supabase client instance to avoid hydration issues
+  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
+  const [clientInitialized, setClientInitialized] = useState(false);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-    if (!supabase) {
-        return (
-            <div className="max-w-3xl mx-auto space-y-4">
-                <Alert variant="destructive">
-                    <AlertTitle>Error</AlertTitle>
-                    <AlertDescription>Supabase client is not initialized. Please check your environment variables and ensure the code is running in a browser.</AlertDescription>
-                </Alert>
-            </div>
-        );
-    }
+  // Initialize Supabase client only on the client side
+  useEffect(() => {
+    setSupabase(getSupabaseBrowserClient());
+    setClientInitialized(true); // Mark client as initialized
+  }, []);
+
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -124,7 +123,7 @@ export default function PostJobForm() {
     if (!supabase) {
         toast({
             title: "Error",
-            description: 'Supabase client is not initialized.',
+            description: 'Supabase client is not ready. Please wait and try again.',
             variant: "destructive",
         });
         setIsSubmitting(false);
@@ -188,260 +187,283 @@ export default function PostJobForm() {
   return (
     <Card className="max-w-2xl mx-auto shadow-md">
       <CardHeader>
-        <CardTitle className="text-2xl font-bold text-center text-primary">Post a New Job</CardTitle>
+        <CardTitle className="text-2xl font-bold text-center text-primary">
+          {clientInitialized && !supabase ? 'Error' : 'Post a New Job'}
+        </CardTitle>
+         {clientInitialized && !supabase && (
+            <CardDesc className="text-center text-destructive">
+                 Could not connect to the database.
+            </CardDesc>
+         )}
       </CardHeader>
       <CardContent>
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(onSubmit, (errors) => console.log("Form validation errors:", errors))} className="space-y-6">
-            {/* Basic Info */}
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Job Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Software Engineer" {...field} aria-required="true" />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="company_name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Company Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., Tech Corp" {...field} aria-required="true"/>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="location"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input placeholder="e.g., New York, NY or Remote" {...field} aria-required="true"/>
-                  </FormControl>
-                   <FormDescription>
-                      Specify the city, state, or "Remote".
-                   </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             {/* Details */}
-             <FormField
-              control={form.control}
-              name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Job Description</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Describe the role, responsibilities, and qualifications..."
-                      className="min-h-[150px]"
-                      {...field}
-                      aria-required="true"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-             <FormField
-              control={form.control}
-              name="application_instructions"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Application Instructions</FormLabel>
-                  <FormControl>
-                    <Textarea
-                      placeholder="Explain how candidates should apply (e.g., link to application portal, email address)."
-                      className="min-h-[100px]"
-                      {...field}
-                      aria-required="true"
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Job Specifics */}
-            <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-              <FormField
-                control={form.control}
-                name="employment_type"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Employment Type</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} >
+         {/* Conditionally render Alert or Form based on Supabase client state */}
+         {clientInitialized && !supabase ? (
+            <Alert variant="destructive">
+              <AlertTitle>Initialization Error</AlertTitle>
+              <AlertDescription>Supabase client could not be initialized. Please check your environment variables (e.g., `.env.local`) and ensure the application has browser access.</AlertDescription>
+            </Alert>
+         ) : !clientInitialized ? (
+            // Optional: Show a loading state while client initializes
+             <div className="flex justify-center items-center py-10">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+             </div>
+         ) : (
+           // Render the form only if client is initialized and supabase exists
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(onSubmit, (errors) => console.log("Form validation errors:", errors))} className="space-y-6">
+                {/* Basic Info */}
+                <FormField
+                  control={form.control}
+                  name="title"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Title</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select an employment type" />
-                        </SelectTrigger>
+                        <Input placeholder="e.g., Software Engineer" {...field} aria-required="true" />
                       </FormControl>
-                      <SelectContent>
-                         {employmentTypes.map((type) => (
-                          <SelectItem key={type} value={type}>{type}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="experience_level"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Experience Level</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="company_name"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company Name</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                           <SelectValue placeholder="Select an experience level" />
-                        </SelectTrigger>
+                        <Input placeholder="e.g., Tech Corp" {...field} aria-required="true"/>
                       </FormControl>
-                      <SelectContent>
-                        {experienceLevels.map((level) => (
-                          <SelectItem key={level} value={level}>{level}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            {/* Salary */}
-             <div className='grid grid-cols-1 md:grid-cols-3 gap-4 items-start'>
-              <FormField
-                control={form.control}
-                name="salary_min"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salary Min (Optional)</FormLabel>
-                    <FormControl>
-                       {/* Ensure value is always a string or empty string */}
-                       <Input
-                        type='number'
-                        placeholder="e.g., 50000"
-                        {...field}
-                        value={field.value ?? ''} // Use empty string for undefined/null
-                        onChange={(e) => field.onChange(e.target.value)} // Pass string value
-                       />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="salary_max"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salary Max (Optional)</FormLabel>
-                    <FormControl>
-                        {/* Ensure value is always a string or empty string */}
-                        <Input
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="location"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Location</FormLabel>
+                      <FormControl>
+                        <Input placeholder="e.g., New York, NY or Remote" {...field} aria-required="true"/>
+                      </FormControl>
+                       <FormDescription>
+                          Specify the city, state, or "Remote".
+                       </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 {/* Details */}
+                 <FormField
+                  control={form.control}
+                  name="description"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Job Description</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Describe the role, responsibilities, and qualifications..."
+                          className="min-h-[150px]"
+                          {...field}
+                          aria-required="true"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                 <FormField
+                  control={form.control}
+                  name="application_instructions"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Application Instructions</FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Explain how candidates should apply (e.g., link to application portal, email address)."
+                          className="min-h-[100px]"
+                          {...field}
+                          aria-required="true"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {/* Job Specifics */}
+                <div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
+                  <FormField
+                    control={form.control}
+                    name="employment_type"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Employment Type</FormLabel>
+                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value} >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select an employment type" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                             {employmentTypes.map((type) => (
+                              <SelectItem key={type} value={type}>{type}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="experience_level"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Experience Level</FormLabel>
+                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                               <SelectValue placeholder="Select an experience level" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {experienceLevels.map((level) => (
+                              <SelectItem key={level} value={level}>{level}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                {/* Salary */}
+                 <div className='grid grid-cols-1 md:grid-cols-3 gap-4 items-start'>
+                  <FormField
+                    control={form.control}
+                    name="salary_min"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Salary Min (Optional)</FormLabel>
+                        <FormControl>
+                           {/* Ensure value is always a string or empty string */}
+                           <Input
                             type='number'
-                            placeholder="e.g., 100000"
+                            placeholder="e.g., 50000"
                             {...field}
                             value={field.value ?? ''} // Use empty string for undefined/null
                             onChange={(e) => field.onChange(e.target.value)} // Pass string value
-                        />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-               <FormField
-                control={form.control}
-                name="salary_currency"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Salary Currency</FormLabel>
-                     <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
-                      <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select currency" />
-                        </SelectTrigger>
-                      </FormControl>
-                      <SelectContent>
-                        {salaryCurrencies.map((currency) => (
-                          <SelectItem key={currency} value={currency}>{currency}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-            {/* Expiration Date */}
-             <FormField
-              control={form.control}
-              name="expires_at"
-              render={({ field }) => (
-                  <FormItem className="flex flex-col">
-                    <FormLabel>Expiration Date (Optional)</FormLabel>
-                    <Popover>
-                        <PopoverTrigger asChild>
-                            <FormControl>
-                                <CalendarButton // Use the renamed import
-                                    variant={"outline"}
-                                    className={cn(
-                                        "w-[240px] pl-3 text-left font-normal",
-                                        !field.value && "text-muted-foreground"
-                                    )}
-                                >
-                                    {field.value ? (
-                                        format(field.value, "PPP")
-                                    ) : (
-                                        <span>Pick a date</span>
-                                    )}
-                                    <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
-                                </CalendarButton>
-                            </FormControl>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                            <Calendar
-                                mode="single"
-                                selected={field.value}
-                                onSelect={field.onChange}
-                                disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} // Disable past dates only
-                                initialFocus
+                           />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={form.control}
+                    name="salary_max"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Salary Max (Optional)</FormLabel>
+                        <FormControl>
+                            {/* Ensure value is always a string or empty string */}
+                            <Input
+                                type='number'
+                                placeholder="e.g., 100000"
+                                {...field}
+                                value={field.value ?? ''} // Use empty string for undefined/null
+                                onChange={(e) => field.onChange(e.target.value)} // Pass string value
                             />
-                        </PopoverContent>
-                    </Popover>
-                    <FormDescription>
-                        The date this job posting will expire.
-                    </FormDescription>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            {/* Submit Button */}
-            <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting}>
-              {isSubmitting ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  Submitting...
-                </>
-              ) : (
-                'Post Job'
-              )}
-            </Button>
-          </form>
-        </Form>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                   <FormField
+                    control={form.control}
+                    name="salary_currency"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Salary Currency</FormLabel>
+                         <Select onValueChange={field.onChange} value={field.value} defaultValue={field.value}>
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Select currency" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            {salaryCurrencies.map((currency) => (
+                              <SelectItem key={currency} value={currency}>{currency}</SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
+                {/* Expiration Date */}
+                 <FormField
+                  control={form.control}
+                  name="expires_at"
+                  render={({ field }) => (
+                      <FormItem className="flex flex-col">
+                        <FormLabel>Expiration Date (Optional)</FormLabel>
+                        <Popover>
+                            <PopoverTrigger asChild>
+                                <FormControl>
+                                    <CalendarButton // Use the renamed import
+                                        variant={"outline"}
+                                        className={cn(
+                                            "w-[240px] pl-3 text-left font-normal",
+                                            !field.value && "text-muted-foreground"
+                                        )}
+                                    >
+                                        {field.value ? (
+                                            format(field.value, "PPP")
+                                        ) : (
+                                            <span>Pick a date</span>
+                                        )}
+                                        <CalendarIcon className="ml-auto h-4 w-4 opacity-50" />
+                                    </CalendarButton>
+                                </FormControl>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-auto p-0" align="start">
+                                <Calendar
+                                    mode="single"
+                                    selected={field.value}
+                                    onSelect={field.onChange}
+                                    disabled={(date) => date < new Date(new Date().setHours(0, 0, 0, 0))} // Disable past dates only
+                                    initialFocus
+                                />
+                            </PopoverContent>
+                        </Popover>
+                        <FormDescription>
+                            The date this job posting will expire.
+                        </FormDescription>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+                {/* Submit Button */}
+                <Button type="submit" className="w-full bg-accent text-accent-foreground hover:bg-accent/90" disabled={isSubmitting || !clientInitialized}>
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      Submitting...
+                    </>
+                  ) : (
+                    'Post Job'
+                  )}
+                </Button>
+              </form>
+            </Form>
+         )}
+
       </CardContent>
     </Card>
   );
 }
+
