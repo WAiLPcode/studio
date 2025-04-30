@@ -1,4 +1,3 @@
-
 'use client';
 import * as React from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -153,9 +152,11 @@ export default function PostJobForm() {
 
         if (error) {
              // Log the raw error object first to inspect its structure
-             console.error('Raw Supabase insert error object:', error);
+             console.error('Raw Supabase insert error object:', error); // This log might show {} if the error is minimal
 
              // Log specific details if available, guarding against undefined/null
+             // Use JSON.stringify for a better representation if the object structure is unknown
+             console.error('Supabase insert error (stringified):', JSON.stringify(error, null, 2));
              console.error('Supabase insert error details:', {
                 message: error?.message ?? 'No message available',
                 details: error?.details ?? 'No details available',
