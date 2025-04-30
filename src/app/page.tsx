@@ -17,29 +17,38 @@ export default function Home() {
   const [locationFilter, setLocationFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = getSupabaseBrowserClient();
+  const supabase = getSupabaseBrowserClient(); // Get the Supabase client
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     setError(null);
-    try {
-      const { data, error } = await supabase
-        .from('job_postings')
-        .select('*')
-        .order('created_at', { ascending: false });
 
-      if (error) {
-        console.error('Supabase fetch error:', error);
-        throw new Error('Failed to fetch job listings. Please ensure your Supabase URL and Key are correctly configured in .env and the table exists.');
+    if (!supabase) {
+        setError('Supabase client is not initialized. Please make sure the code is running in a browser environment.');
+        setLoading(false);
+        return;
       }
-      setJobs(data || []);
-      setFilteredJobs(data || []); // Initialize filtered jobs
+    try {
+        const { data, error } = await supabase
+            .from('job_postings')
+            .select('*')
+            .order('updated_at', { ascending: false });
+
+        if (error) {
+             console.error('Supabase fetch error:', error);
+            setError(
+                `Failed to fetch job listings. Error: ${error.message || 'Unknown error'}.` 
+            );
+            return;
+        }
+         setJobs(data || []);
+         setFilteredJobs(data || []);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
-  }, [supabase]);
+  }, [supabase]); // Include supabase in dependencies
 
 
   useEffect(() => {
@@ -128,7 +137,7 @@ export default function Home() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Error Fetching Jobs</AlertTitle>
             <AlertDescription>
-              {error} Check the browser console for more details.
+              {error}
             </AlertDescription>
          </Alert>
        )}

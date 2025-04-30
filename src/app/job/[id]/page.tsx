@@ -25,6 +25,12 @@ export default function JobDetailPage() {
 
   const fetchJobDetails = useCallback(async () => {
     if (!jobId) return;
+    if (!supabase) {
+      setError(
+        'Supabase client is not initialized. Please make sure the code is running in a browser environment.'
+      );
+      return;
+    }
     setLoading(true);
     setError(null);
     try {
@@ -35,23 +41,35 @@ export default function JobDetailPage() {
         .single(); // Expect a single result
 
       if (error) {
-        if (error.code === 'PGRST116') { // Resource not found
-             throw new Error(`Job with ID ${jobId} not found.`);
-           }
-        console.error('Supabase fetch error:', error);
-        throw new Error('Failed to fetch job details.');
+         console.error('Supabase fetch error:', error);
+          if (error.code === 'PGRST116') {
+             setError(`Job with ID ${jobId} not found.`);
+          } else {
+              setError(`Failed to fetch job details. Error: ${error.message || 'Unknown error'}.`);
+          }
+          return;
       }
        if (!data) {
-         throw new Error(`Job with ID ${jobId} not found.`);
+         setError(`Job with ID ${jobId} not found.`);
        }
       setJob(data);
-    } catch (err: any) {
+    } catch (err: any) { // we no longer throw an error, so we always enter here
       setError(err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
   }, [jobId, supabase]);
 
+  if (!supabase) {
+    return (
+      <div className="max-w-3xl mx-auto space-y-4">
+        <Alert variant="destructive">
+          <AlertTitle>Error Loading Job</AlertTitle>
+          <AlertDescription>Supabase client is not initialized. Please make sure the code is running in a browser environment.</AlertDescription>
+        </Alert>
+      </div>
+    );
+  }
 
   useEffect(() => {
      fetchJobDetails();
