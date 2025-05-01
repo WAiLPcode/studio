@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import './globals.css';
 import Navbar from '@/components/layout/navbar';
 import { Toaster } from '@/components/ui/toaster'; // Import Toaster
+import { AuthProvider } from '@/contexts/auth-context'; // Import AuthProvider
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -29,12 +30,14 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased flex flex-col min-h-screen`}
       >
-        <Navbar />
-        <main className="flex-grow container mx-auto px-4 py-8">{children}</main>
-        <footer className="bg-secondary text-secondary-foreground p-4 text-center text-sm">
-          © {new Date().getFullYear()} JobFinder. All rights reserved.
-        </footer>
-        <Toaster /> {/* Add Toaster component here */}
+        <AuthProvider>
+          <Navbar />
+          <main className="flex-grow container mx-auto px-4 py-8">{children}</main>
+          <footer className="bg-secondary text-secondary-foreground p-4 text-center text-sm">
+            © {new Date().getFullYear()} JobFinder. All rights reserved.
+          </footer>
+          <Toaster /> {/* Add Toaster component here */}
+        </AuthProvider>
       </body>
     </html>
   );

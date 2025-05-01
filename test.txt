@@ -1,0 +1,36 @@
+trabajras ayudando a que tu comindad este completamente limpia, trabajras ayudando a que tu comindad este completamente limpia, trabajras ayudando a que tu comindad este completamente limpia, trabajras ayudando a que tu comindad este completamente limpia, trabajras ayudando a que tu comindad este completamente limpia, trabajras ayudando a que tu comindad este completamente limpia, 
+
+ok, gracias, ok, gracias, ok, gracias, ok, gracias, ok, gracias, ok, gracias, 
+
+
+6a60c63cc1a0da07c6e4ed2fc487fa5e9bf2c04a
+
+there are 3 errors, I am trying to create a job and when I save the job I get an error, it seems that the application is not connected correctly with the db.
+analyze the setup.sql file so that you have an idea of the information that the people that will publish jobs will be able to put in the input, based on that make sure that you have everything connected correctly.
+
+1:
+
+Error: Raw Supabase insert error object: {}
+    at createUnhandledError (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:879:71)
+    at handleClientError (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1052:56)
+    at console.error (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1191:56)
+    at onSubmit (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/src_41963d84._.js:1094:25)
+    at async https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_8bc20ace._.js:2189:21
+
+2:
+
+Error: Supabase insert error (stringified): "{\n  \"code\": \"PGRST204\",\n  \"details\": null,\n  \"hint\": null,\n  \"message\": \"Could not find the 'company_name' column of 'job_postings' in the schema cache\"\n}"
+    at createUnhandledError (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:879:71)
+    at handleClientError (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1052:56)
+    at console.error (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1191:56)
+    at onSubmit (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/src_41963d84._.js:1097:25)
+    at async https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_8bc20ace._.js:2189:21
+
+3:
+
+Error: Supabase insert error details: {}
+    at createUnhandledError (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:879:71)
+    at handleClientError (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1052:56)
+    at console.error (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_next_dist_client_43e3ffb8._.js:1191:56)
+    at onSubmit (https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/src_41963d84._.js:1098:25)
+    at async https://6000-idx-studio-1746011836361.cluster-fnjdffmttjhy2qqdugh3yehhs2.cloudworkstations.dev/_next/static/chunks/node_modules_8bc20ace._.js:2189:21

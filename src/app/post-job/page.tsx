@@ -1,5 +1,6 @@
 'use client';
 import * as React from 'react';
+import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import { z } from 'zod';
@@ -24,6 +25,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from 'react'; // Added useEffect
 import { Loader2 } from 'lucide-react';
@@ -42,16 +44,20 @@ const salaryCurrencies = ['USD', 'EUR'] as const;
 
 
 
+// Form schema that matches the database schema in setup.sql
 const formSchema = z.object({
+  // Form field is 'title' but maps to 'job_title' in database
   title: z.string().min(2, {
     message: 'Job title must be at least 2 characters.',
   }).max(100, { message: 'Job title must be 100 characters or less.'}),
+  // We keep company_name in the form for UX, but it's stored in employer_profiles table
   company_name: z.string().min(2, {
     message: 'Company name must be at least 2 characters.',
   }).max(100, { message: 'Company name must be 100 characters or less.'}),
   location: z.string().min(2, {
     message: 'Location must be at least 2 characters.',
   }).max(100, { message: 'Location must be 100 characters or less.'}),
+  // Form field is 'description' but maps to 'job_description' in database
   description: z.string().min(10, {
     message: 'Description must be at least 10 characters.',
   }).max(5000, { message: 'Description must be 5000 characters or less.'}),
@@ -90,6 +96,8 @@ export default function PostJobForm() {
   const [clientInitialized, setClientInitialized] = useState(false);
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user } = useAuth();
+  const router = useRouter();
 
   // Initialize Supabase client only on the client side
   useEffect(() => {
@@ -99,6 +107,27 @@ export default function PostJobForm() {
         setClientInitialized(true); // Mark client as initialized
     }
   }, []);
+  
+  // Check if user is authenticated and is an employer
+  useEffect(() => {
+    if (clientInitialized) {
+      if (!user) {
+        toast({
+          title: "Authentication required",
+          description: "You need to login as an employer to post jobs.",
+          variant: "destructive"
+        });
+        router.push('/login');
+      } else if (user.role !== 'employer') {
+        toast({
+          title: "Access denied",
+          description: "Only employers can post jobs.",
+          variant: "destructive"
+        });
+        router.push('/');
+      }
+    }
+  }, [user, clientInitialized, router, toast]);
 
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -131,14 +160,34 @@ export default function PostJobForm() {
         setIsSubmitting(false);
         return;
     }
+    
+    // Check if user is authenticated and is an employer
+    if (!user || user.role !== 'employer') {
+        toast({
+            title: "Authentication required",
+            description: "You must be logged in as an employer to post jobs.",
+            variant: "destructive"
+        });
+        setIsSubmitting(false);
+        router.push('/login');
+        return;
+    }
+    
+    // NOTE FOR DEVELOPERS:
+    // The job_postings table in the database has the following field names:
+    // - job_title (not title)
+    // - job_description (not description)
+    // - employer_user_id (not company_name)
+    // See setup.sql for the complete database schema
     try {
         // Explicitly map form values to database columns
         // This improves clarity and helps prevent issues if form field names diverge from DB columns
         const dataToInsert = {
-            title: values.title,
-            company_name: values.company_name, // Ensure this matches the DB column name exactly
+            job_title: values.title, // Map to job_title column in DB
+            // Use the authenticated user's ID for employer_user_id
+            employer_user_id: user.id, // Set to the current user's ID
             location: values.location,
-            description: values.description,
+            job_description: values.description, // Map to job_description column in DB
             application_instructions: values.application_instructions,
             employment_type: values.employment_type,
             experience_level: values.experience_level,
@@ -149,6 +198,7 @@ export default function PostJobForm() {
         };
 
         console.log("Submitting values to Supabase:", dataToInsert); // Log data being sent
+        console.log("Database schema from setup.sql: job_title, job_description, employer_user_id, etc."); // Log schema reminder
 
         // Call Supabase insert
         const { data, error } = await supabase
@@ -174,8 +224,8 @@ export default function PostJobForm() {
 
             toast({
               title: "Error Posting Job",
-              // Provide a more informative default message and include the code if possible
-              description: `Failed to post job. ${error.message || 'Check console.'} ${error.code ? `(Code: ${error.code})` : ''}. Please verify your Supabase table schema and column names (e.g., 'company_name'). Also check RLS permissions.`,
+              // Provide a more informative message specific to our database schema
+              description: `Failed to post job. ${error.message || 'Check console.'} ${error.code ? `(Code: ${error.code})` : ''}. The form has been updated to match the database schema, but there might be permission issues or other database configuration problems.`,
               variant: "destructive",
               duration: 10000, // Keep toast longer
             });
