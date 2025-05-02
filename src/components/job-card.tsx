@@ -5,12 +5,13 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { type JobPosting } from '@/types';
 import { formatDistanceToNow } from 'date-fns'; // For relative time
+import { memo } from 'react';
 
 interface JobCardProps {
   job: JobPosting;
 }
 
-export default function JobCard({ job }: JobCardProps) {
+function JobCard({ job }: JobCardProps) {
   const timeAgo = job.created_at ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true }) : '';
 
   return (
@@ -62,7 +63,7 @@ export default function JobCard({ job }: JobCardProps) {
          )}
       </CardContent>
       <CardFooter className="flex justify-end border-t pt-4 pb-4 pr-4">
-        <Link href={`/job/${job.id}`} passHref>
+        <Link href={`/job/${job.id}`} prefetch={true} passHref>
           <Button variant="outline" size="sm" className="border-accent text-accent hover:bg-accent/10 hover:text-accent">
             View Details
           </Button>
@@ -71,3 +72,6 @@ export default function JobCard({ job }: JobCardProps) {
     </Card>
   );
 }
+
+// Export a memoized version of the component to prevent unnecessary re-renders
+export default memo(JobCard);

@@ -6,24 +6,26 @@ import { Button } from '@/components/ui/button';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
-import { memo } from 'react';
+import { memo, useMemo, useCallback } from 'react';
 
 function Navbar() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
 
-  const isActive = (path: string) => pathname === path;
+  // Memoize the active state calculations to prevent unnecessary recalculations
+  const navState = useMemo(() => {
+    return {
+      homeActive: pathname === '/',
+      postJobActive: pathname === '/post-job',
+      loginActive: pathname === '/login',
+      registerActive: pathname === '/register'
+    };
+  }, [pathname]);
 
-  // Memoize the active state calculation to prevent unnecessary recalculations
-  const homeActive = isActive('/');
-  const postJobActive = isActive('/post-job');
-  const loginActive = isActive('/login');
-  const registerActive = isActive('/register');
-
-  const handleLogout = async () => {
+  const handleLogout = useCallback(async () => {
     await logout();
     // No need to redirect, the auth context will handle it
-  };
+  }, [logout]);
 
   return (
     <nav className="bg-card border-b shadow-sm sticky top-0 z-50">
@@ -33,14 +35,14 @@ function Navbar() {
           <span className="text-xl font-bold">JobFinder</span>
         </Link>
         <div className="flex items-center gap-4">
-          <Link href="/" passHref>
+          <Link href="/" prefetch={true} passHref>
             <Button
-              variant={homeActive ? 'default' : 'ghost'}
+              variant={navState.homeActive ? 'default' : 'ghost'}
               className={cn(
                 'transition-colors',
-                homeActive ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'hover:bg-secondary'
+                navState.homeActive ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'bg-slate-300 hover:text-black hover:bg-slate-200'
               )}
-              aria-current={homeActive ? 'page' : undefined}
+              aria-current={navState.homeActive ? 'page' : undefined}
             >
               Home
             </Button>
@@ -48,14 +50,14 @@ function Navbar() {
           
           {/* Show Post Job button only for employers */}
           {user && user.role === 'employer' && (
-            <Link href="/post-job" passHref>
+            <Link href="/post-job" prefetch={true} passHref>
               <Button
-                variant={postJobActive ? 'default' : 'outline'}
+                variant={navState.postJobActive ? 'default' : 'outline'}
                 className={cn(
                   'transition-colors',
-                  postJobActive ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'border-accent text-accent hover:bg-accent/10'
+                  navState.postJobActive ? 'bg-accent text-accent-foreground hover:bg-accent/90' : 'border-accent text-accent hover:bg-accent/10'
                 )}
-                aria-current={postJobActive ? 'page' : undefined}
+                aria-current={navState.postJobActive ? 'page' : undefined}
               >
                 Post a Job
               </Button>
@@ -95,15 +97,15 @@ function Navbar() {
             ) : (
               <>
                 {/* Login button */}
-                <Link href="/login" passHref>
+                <Link href="/login" prefetch={true} passHref>
                   <Button
-                    variant={loginActive ? 'default' : 'ghost'}
+                    variant={navState.loginActive ? 'default' : 'ghost'}
                     size="sm"
                     className={cn(
                       'transition-colors',
-                      loginActive ? 'bg-accent text-accent-foreground hover:bg-accent/90 ' : 'bg-slate-300 hover:bg-secondary hover:text-black'
+                      navState.loginActive ? 'bg-accent text-accent-foreground hover:bg-accent/90 ' : 'bg-slate-300 hover:bg-secondary hover:text-black'
                     )}
-                    aria-current={loginActive ? 'page' : undefined}
+                    aria-current={navState.loginActive ? 'page' : undefined}
                   >
                     <LogIn className="h-4 w-4 mr-1" />
                     Login
@@ -111,15 +113,15 @@ function Navbar() {
                 </Link>
                 
                 {/* Register button */}
-                <Link href="/register" passHref>
+                <Link href="/register" prefetch={true} passHref>
                   <Button
-                    variant={registerActive ? 'default' : 'secondary'}
+                    variant={navState.registerActive ? 'default' : 'secondary'}
                     size="sm"
                     className={cn(
                       'transition-colors',
-                      registerActive ? 'bg-accent text-accent-foreground hover:bg-accent/90' : ''
+                      navState.registerActive ? 'bg-accent text-accent-foreground hover:bg-accent/90' : ''
                     )}
-                    aria-current={registerActive ? 'page' : undefined}
+                    aria-current={navState.registerActive ? 'page' : undefined}
                   >
                     <UserPlus className="h-4 w-4 mr-1" />
                     Register

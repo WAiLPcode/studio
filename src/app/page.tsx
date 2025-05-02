@@ -1,23 +1,42 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import dynamic from 'next/dynamic'; // Import dynamic
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, X } from 'lucide-react';
-import JobCard from '@/components/job-card';
+// import JobCard from '@/components/job-card'; // Comment out direct import
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type JobPosting } from '@/types'; // Import the type
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from 'lucide-react';
+import { usePathname } from 'next/navigation';
+
+// Dynamically import JobCard with optimized loading
+const JobCard = dynamic(() => import('@/components/job-card'), {
+  loading: () => (
+    <div className="border rounded-lg p-4 space-y-3 shadow">
+      <Skeleton className="h-6 w-3/4" />
+      <Skeleton className="h-4 w-1/2" />
+      <Skeleton className="h-4 w-1/4" />
+      <Skeleton className="h-16 w-full" />
+      <div className="flex justify-end">
+        <Skeleton className="h-8 w-24" />
+      </div>
+    </div>
+  ),
+  ssr: false // Disable server-side rendering to improve client navigation
+});
 
 export default function Home() {
+  const pathname = usePathname(); // Track current path for memoization
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [filteredJobs, setFilteredJobs] = useState<JobPosting[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = getSupabaseBrowserClient(); // Get the Supabase client
+  const supabase = useMemo(() => getSupabaseBrowserClient(), []); // Memoize Supabase client
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
@@ -55,7 +74,7 @@ export default function Home() {
     fetchJobs();
   }, [fetchJobs]);
 
-  // Debounced filter function
+  // Memoized and debounced filter function
   const debouncedFilterJobs = useCallback(() => {
       const lowerCaseFilter = locationFilter.toLowerCase().trim();
       if (lowerCaseFilter === '') {
@@ -68,6 +87,35 @@ export default function Home() {
       }
   }, [locationFilter, jobs]);
 
+  const handleClearFilter = () => {
+    setLocationFilter('');
+  };
+
+  // Memoize the rendered job cards block to avoid conditional hook calls
+  const renderedJobCards = useMemo(() => {
+    if (filteredJobs.length > 0) {
+      return (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredJobs.map((job) => (
+            <JobCard key={job.id} job={job} />
+          ))}
+        </div>
+      );
+    } else {
+      return (
+        <div className="text-center py-12 text-muted-foreground">
+          <p className="text-lg">
+            {jobs.length > 0 && locationFilter
+              ? `No jobs found matching \"${locationFilter}\". Try clearing the filter.`
+              : 'No job postings available at the moment.'}
+          </p>
+          {jobs.length > 0 && locationFilter && (
+            <Button variant="link" onClick={handleClearFilter} className="mt-2 text-accent">Clear Filter</Button>
+          )}
+        </div>
+      );
+    }
+  }, [filteredJobs, jobs.length, locationFilter, handleClearFilter]);
 
   // Apply filter when locationFilter changes (with debounce)
   useEffect(() => {
@@ -81,10 +129,7 @@ export default function Home() {
   }, [locationFilter, debouncedFilterJobs]);
 
 
-  const handleClearFilter = () => {
-    setLocationFilter('');
-  };
-
+  // Loading skeleton component to prevent re-renders
   const LoadingSkeleton = () => (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
       {Array.from({ length: 6 }).map((_, index) => (
@@ -145,26 +190,7 @@ export default function Home() {
       {loading ? (
         <LoadingSkeleton />
       ) : (
-        <>
-          {filteredJobs.length > 0 ? (
-             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-               {filteredJobs.map((job) => (
-                 <JobCard key={job.id} job={job} />
-               ))}
-             </div>
-          ) : (
-            <div className="text-center py-12 text-muted-foreground">
-                <p className="text-lg">
-                    {jobs.length > 0 && locationFilter
-                        ? `No jobs found matching "${locationFilter}". Try clearing the filter.`
-                        : 'No job postings available at the moment.'}
-                </p>
-                {jobs.length > 0 && locationFilter && (
-                    <Button variant="link" onClick={handleClearFilter} className="mt-2 text-accent">Clear Filter</Button>
-                )}
-            </div>
-          )}
-        </>
+        renderedJobCards
       )}
     </div>
   );

@@ -171,7 +171,7 @@ export default function JobDetailPage() {
 
   return (
     <div className="max-w-3xl mx-auto space-y-4">
-       <Button variant="outline" size="sm" onClick={() => router.back()} className="mb-4 hover:bg-secondary/80 transition-colors">
+       <Button variant="outline" size="sm" onClick={() => router.back()} className="mb-4 hover:bg-secondary/80 transition-colors hover:bg-slate-100 hover:text-black">
          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Listings
        </Button>
 
