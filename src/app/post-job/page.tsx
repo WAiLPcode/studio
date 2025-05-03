@@ -24,14 +24,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { supabaseClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
 import { useState, useEffect } from 'react'; // Added useEffect
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
-import { supabaseClient } from '@/lib/supabase/client';
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button as CalendarButton } from "@/components/ui/button" // Renamed Button import
@@ -267,7 +266,7 @@ export default function PostJobForm() {
       <CardHeader>
          {/* Conditional Rendering based on client initialization */}
         <CardTitle className="text-2xl font-bold text-center text-primary">
-           {clientInitialized ? (supabase ? 'Post a New Job' : 'Connection Error') : 'Loading Form...'}
+           {clientInitialized ? (supabaseClient ? 'Post a New Job' : 'Connection Error') : 'Loading Form...'}
        </CardTitle>
         {clientInitialized && !supabaseClient && (
             <CardDesc className="text-center text-destructive">
@@ -277,7 +276,7 @@ export default function PostJobForm() {
       </CardHeader>
        <CardContent>
          {/* Conditionally render Alert or Form based on Supabase client state */}
-         {clientInitialized && !supabase ? (
+         {clientInitialized && !supabaseClient ? (
             <Alert variant="destructive">
               <AlertTitle>Initialization Error</AlertTitle>
               <AlertDescription>Supabase client could not be initialized. Please check your environment variables (e.g., `.env.local`) and ensure the application has browser access.</AlertDescription>

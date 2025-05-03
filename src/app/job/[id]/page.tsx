@@ -64,7 +64,8 @@ export default function JobDetailPage() {
             <Button variant="link" className="text-accent">Go Home</Button>
           </Link>  
         </div>
-  );
+      );
+   }
   const fetchJobDetails = useCallback(async () => {
      if (!jobId || !supabaseClient) return;
        setLoading(true);
@@ -142,8 +143,10 @@ export default function JobDetailPage() {
        </div>
      );
    }
-   const timeAgo = job.created_at ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true }) : '';
-   const expiryDate = job.expires_at ? format(new Date(job.expires_at), 'PPP') : 'N/A'; // Format expiry date
+   // Since we've already checked for null job above, we can safely assert job is non-null here
+   // TypeScript still needs help understanding this
+   const timeAgo = job?.created_at ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true }) : '';
+   const expiryDate = job?.expires_at ? format(new Date(job.expires_at), 'PPP') : 'N/A'; // Format expiry date
    return (
      <div className="max-w-3xl mx-auto space-y-4">
        <Button variant="outline" size="sm" onClick={() => router.back()} className="mb-4 hover:bg-secondary/80 transition-colors hover:bg-slate-100 hover:text-black">
@@ -151,35 +154,35 @@ export default function JobDetailPage() {
        </Button>
        <Card className="shadow-lg border rounded-lg overflow-hidden">
          <CardHeader className="bg-card pb-4">
-           <CardTitle className="text-2xl font-bold text-primary">{job.title}</CardTitle>
+           <CardTitle className="text-2xl font-bold text-primary">{job?.title}</CardTitle>
            <CardDescription className="pt-2 space-y-1.5">
              <div className="flex items-center gap-2 text-muted-foreground">
                <Building className="w-4 h-4 flex-shrink-0" />
-               <span>{job.company_name}</span>
+               <span>{job?.company_name}</span>
              </div>
              <div className="flex items-center gap-2 text-muted-foreground">
                <MapPin className="w-4 h-4 flex-shrink-0" />
-               <span>{job.location}</span>
+               <span>{job?.location}</span>
              </div>
              {/* Display Badges */}
              <div className="flex flex-wrap gap-2 pt-2">
-               {job.employment_type && (
+               {job?.employment_type && (
                  <Badge variant="secondary" className="flex items-center gap-1 text-xs">
-                   <Briefcase className="w-3 h-3" /> {job.employment_type}
+                   <Briefcase className="w-3 h-3" /> {job?.employment_type}
                  </Badge>
                )}
-               {job.experience_level && (
+               {job?.experience_level && (
                  <Badge variant="outline" className="flex items-center gap-1 text-xs">
-                   <TrendingUp className="w-3 h-3" /> {job.experience_level}
+                   <TrendingUp className="w-3 h-3" /> {job?.experience_level}
                  </Badge>
                )}
-               {(job.salary_min != null || job.salary_max != null) && (
+               {(job?.salary_min != null || job?.salary_max != null) && (
                  <Badge variant="outline" className="flex items-center gap-1 text-xs border-green-500 text-green-700">
                    <DollarSign className="w-3 h-3" />
-                   {job.salary_min != null ? `$${job.salary_min.toLocaleString()}` : ''}
-                   {job.salary_min != null && job.salary_max != null ? ' - ' : ''}
-                   {job.salary_max != null ? `$${job.salary_max.toLocaleString()}` : ''}
-                   {job.salary_currency && ` ${job.salary_currency}`}
+                   {job?.salary_min != null ? `$${job?.salary_min.toLocaleString()}` : ''}
+                   {job?.salary_min != null && job?.salary_max != null ? ' - ' : ''}
+                   {job?.salary_max != null ? `$${job?.salary_max.toLocaleString()}` : ''}
+                   {job?.salary_currency && ` ${job?.salary_currency}`}
                  </Badge>
                )}
              </div>
@@ -193,7 +196,7 @@ export default function JobDetailPage() {
                Job Description
              </h3>
              <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-wrap">
-               {job.description}
+               {job?.description}
              </div>
            </div>
            {/* Application Instructions Section */}
@@ -203,7 +206,7 @@ export default function JobDetailPage() {
                How to Apply
              </h3>
              <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-wrap">
-               {job.application_instructions}
+               {job?.application_instructions}
              </div>
            </div>
          </CardContent>

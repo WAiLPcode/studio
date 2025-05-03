@@ -4,6 +4,7 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
   enabled: process.env.ANALYZE === 'true',
 });
 
+// Next.js configuration with Turbopack support
 const nextConfig: NextConfig = {
   /* config options here */
   typescript: {
@@ -21,6 +22,20 @@ const nextConfig: NextConfig = {
         pathname: '/**',
       },
     ],
+  },
+  // Turbopack configuration
+  experimental: {
+    // Enable and configure Turbopack
+    turbo: {
+      // Match the path aliases from tsconfig
+      resolveAlias: {
+        '@': './src',
+      },
+    },
+    // Additional experimental features for Next.js 15
+    optimizePackageImports: ['@radix-ui/react-*', 'lucide-react', 'recharts'],
+    // Ensure proper module resolution
+    serverComponentsExternalPackages: [],
   },
   webpack: (config, { isServer }) => {
     // Fixes npm packages that depend on `fs` module
