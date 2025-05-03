@@ -6,9 +6,11 @@ const withBundleAnalyzer = require('@next/bundle-analyzer')({
 // TypeScript configuration
 /** @type {import('next').NextConfig} */
 
-const { Configuration: WebpackConfiguration } = require('webpack');
+// const { Configuration: WebpackConfiguration } = require('webpack');
+import type { Configuration } from 'webpack';
 // Optional: Import the { TypeScriptBuilderPlugin } type if used as a plugin or for specific configurations.
-const { isServer } = require('next/dist/lib/is-server');
+// const { isServer } = require('next/dist/lib/is-server');
+
 
 // Next.js configuration with performance optimizations
 const nextConfig = {
@@ -54,8 +56,8 @@ const nextConfig = {
     serverActions: true,
     // Ensure proper module resolution
     serverComponentsExternalPackages: [],
-    // Enable partial prerendering for faster initial loads
-    ppr: true,
+    // Enable partial prerendering for faster initial loads - requires canary
+    // ppr: true, // Commented out to fix the CanaryOnlyError
   },
   // Configure page performance
   poweredByHeader: false,
@@ -66,14 +68,20 @@ const nextConfig = {
     reactRemoveProperties: process.env.NODE_ENV === 'production',
     removeConsole: process.env.NODE_ENV === 'production',
   },
-  webpack: (config, { isServer }) => {
+  
+  webpack: (config: Configuration, { isServer }: { isServer: boolean }) => {
+    // Ensure config.resolve and config.resolve.fallback exist
+    config.resolve = config.resolve || {};
+    config.resolve.fallback = config.resolve.fallback || {};
+    
     // Fixes npm packages that depend on `fs` module
     if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-      };
+      // Assert fallback is an indexable type
+      (config.resolve.fallback as { [key: string]: any })['fs'] = false;
     }
+    
+    // Ensure config.optimization exists
+    config.optimization = config.optimization || {};
     
     // Advanced code splitting and bundle optimization
     config.optimization.splitChunks = {
