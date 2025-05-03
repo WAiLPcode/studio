@@ -23,7 +23,7 @@ import {
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "@/components/ui/select";
+} from '@/components/ui/select';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { useAuth } from '@/contexts/auth-context';
 import { useToast } from "@/hooks/use-toast";
@@ -31,6 +31,7 @@ import { useState, useEffect } from 'react'; // Added useEffect
 import { Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { format } from 'date-fns';
+import { supabaseClient } from '@/lib/supabase/client';
 import { Calendar as CalendarIcon } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button as CalendarButton } from "@/components/ui/button" // Renamed Button import
@@ -92,10 +93,9 @@ const formSchema = z.object({
 
 export default function PostJobForm() {
   // Use state to manage the Supabase client instance to avoid hydration issues
-  const [supabase, setSupabase] = useState<ReturnType<typeof getSupabaseBrowserClient> | null>(null);
   const [clientInitialized, setClientInitialized] = useState(false);
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+   const [isSubmitting, setIsSubmitting] = useState(false);
   const { user } = useAuth();
   const router = useRouter();
 
@@ -103,7 +103,6 @@ export default function PostJobForm() {
   useEffect(() => {
     // Ensure this runs only in the browser
     if (typeof window !== 'undefined') {
-        setSupabase(getSupabaseBrowserClient());
         setClientInitialized(true); // Mark client as initialized
     }
   }, []);
@@ -151,7 +150,7 @@ export default function PostJobForm() {
 
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true);
-    if (!supabase) {
+    if (!supabaseClient) {
         toast({
             title: "Error",
             description: 'Supabase client is not ready. Please wait and try again.',
@@ -201,7 +200,7 @@ export default function PostJobForm() {
         console.log("Database schema from setup.sql: job_title, job_description, employer_user_id, etc."); // Log schema reminder
 
         // Call Supabase insert
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
             .from('job_postings')
             .insert([dataToInsert]) // Use the explicitly mapped object
             .select() // Add select() to potentially get more info on error or success
@@ -269,14 +268,14 @@ export default function PostJobForm() {
          {/* Conditional Rendering based on client initialization */}
         <CardTitle className="text-2xl font-bold text-center text-primary">
            {clientInitialized ? (supabase ? 'Post a New Job' : 'Connection Error') : 'Loading Form...'}
-         </CardTitle>
-         {clientInitialized && !supabase && (
+       </CardTitle>
+        {clientInitialized && !supabaseClient && (
             <CardDesc className="text-center text-destructive">
                  Could not initialize connection to the database. Please check setup.
             </CardDesc>
          )}
       </CardHeader>
-      <CardContent>
+       <CardContent>
          {/* Conditionally render Alert or Form based on Supabase client state */}
          {clientInitialized && !supabase ? (
             <Alert variant="destructive">
@@ -411,7 +410,7 @@ export default function PostJobForm() {
                           <FormControl>
                             <SelectTrigger>
                                <SelectValue placeholder="Select an experience level" />
-                            </SelectTrigger>
+                           </SelectTrigger>
                           </FormControl>
                           <SelectContent>
                             {experienceLevels.map((level) => (
@@ -537,7 +536,7 @@ export default function PostJobForm() {
                 <Button
                     type="submit"
                     className="w-full bg-accent text-accent-foreground hover:bg-accent/90"
-                    disabled={isSubmitting || !clientInitialized || !supabase} // Disable if submitting or client not ready
+                    disabled={isSubmitting || !clientInitialized || !supabaseClient} // Disable if submitting or client not ready
                 >
                   {isSubmitting ? (
                     <>

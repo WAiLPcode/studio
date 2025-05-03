@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, X } from 'lucide-react';
 // import JobCard from '@/components/job-card'; // Comment out direct import
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { supabaseClient } from '@/lib/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { type JobPosting } from '@/types'; // Import the type
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -32,28 +32,31 @@ const JobCard = dynamic(() => import('@/components/job-card'), {
 export default function Home() {
   const pathname = usePathname(); // Track current path for memoization
   const [jobs, setJobs] = useState<JobPosting[]>([]);
-  const [filteredJobs, setFilteredJobs] = useState<JobPosting[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const supabase = useMemo(() => getSupabaseBrowserClient(), []); // Memoize Supabase client
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
     setError(null);
 
-    if (!supabase) {
+    if (!supabaseClient ) {
         setError('Supabase client is not initialized. Please make sure the code is running in a browser environment.');
-        setLoading(false);
+        setLoading(false); 
         return;
       }
+      const lowerCaseFilter = locationFilter.toLowerCase().trim();
     try {
-        const { data, error } = await supabase
+      let query = supabaseClient
             .from('job_postings')
             .select('*')
             .order('updated_at', { ascending: false });
+      if (lowerCaseFilter !== '') {
+        query = query.ilike('location', `%${lowerCaseFilter}%`);
+      }
 
-        if (error) {
+      const { data, error } = await query;
+      if (error) {
              console.error('Supabase fetch error:', error);
             setError(
                 `Failed to fetch job listings. Error: ${error.message || 'Unknown error'}.` 
@@ -61,31 +64,18 @@ export default function Home() {
             return;
         }
          setJobs(data || []);
-         setFilteredJobs(data || []);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred.');
     } finally {
       setLoading(false);
     }
-  }, [supabase]); // Include supabase in dependencies
+  }, [locationFilter]); 
 
 
   useEffect(() => {
     fetchJobs();
   }, [fetchJobs]);
-
-  // Memoized and debounced filter function
-  const debouncedFilterJobs = useCallback(() => {
-      const lowerCaseFilter = locationFilter.toLowerCase().trim();
-      if (lowerCaseFilter === '') {
-          setFilteredJobs(jobs);
-      } else {
-          const filtered = jobs.filter(job =>
-              job.location.toLowerCase().includes(lowerCaseFilter)
-          );
-          setFilteredJobs(filtered);
-      }
-  }, [locationFilter, jobs]);
+    const filteredJobs = jobs;
 
   const handleClearFilter = () => {
     setLocationFilter('');
@@ -118,15 +108,10 @@ export default function Home() {
   }, [filteredJobs, jobs.length, locationFilter, handleClearFilter]);
 
   // Apply filter when locationFilter changes (with debounce)
-  useEffect(() => {
-      const handler = setTimeout(() => {
-          debouncedFilterJobs();
-      }, 300); // 300ms debounce
-
-      return () => {
-          clearTimeout(handler);
-      };
-  }, [locationFilter, debouncedFilterJobs]);
+    useEffect(() => {
+        const timeoutId = setTimeout(() => fetchJobs(), 300); // Debounce by 300ms
+        return () => clearTimeout(timeoutId); 
+    }, [locationFilter, fetchJobs]);
 
 
   // Loading skeleton component to prevent re-renders
