@@ -42,9 +42,9 @@ const nextConfig = {
     pagesBufferLength: 5,
   },
   // Turbopack and experimental configuration
+  swcMinify: true,
   experimental: {
-    // Enable and configure Turbopack
-    turbo: {
+      turbo: {
       // Match the path aliases from tsconfig
       resolveAlias: {
         '@': './src',
@@ -54,9 +54,8 @@ const nextConfig = {
     optimizePackageImports: ['@radix-ui/react-*', 'lucide-react', 'recharts', '@tanstack/react-query', 'date-fns', 'zod'],
     // Enable server actions for better performance
     serverActions: true,
-    // Ensure proper module resolution
-    serverComponentsExternalPackages: [],
-    // Enable partial prerendering for faster initial loads - requires canary
+     serverExternalPackages: [],
+     // Enable partial prerendering for faster initial loads - requires canary
     // ppr: true, // Commented out to fix the CanaryOnlyError
   },
   // Configure page performance
@@ -64,7 +63,6 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true, // Use SWC minifier for better performance
   compiler: {
-    // Enable React optimizations
     reactRemoveProperties: process.env.NODE_ENV === 'production',
     removeConsole: process.env.NODE_ENV === 'production',
   },
