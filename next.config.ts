@@ -42,7 +42,6 @@ const nextConfig = {
     pagesBufferLength: 5,
   },
   // Turbopack and experimental configuration
-  swcMinify: true,
   experimental: {
       turbo: {
       // Match the path aliases from tsconfig
@@ -56,12 +55,11 @@ const nextConfig = {
     serverActions: true,
      serverExternalPackages: [],
      // Enable partial prerendering for faster initial loads - requires canary
-    // ppr: true, // Commented out to fix the CanaryOnlyError
   },
   // Configure page performance
   poweredByHeader: false,
   reactStrictMode: true,
-  swcMinify: true, // Use SWC minifier for better performance
+   // Use SWC minifier for better performance,
   compiler: {
     reactRemoveProperties: process.env.NODE_ENV === 'production',
     removeConsole: process.env.NODE_ENV === 'production',
