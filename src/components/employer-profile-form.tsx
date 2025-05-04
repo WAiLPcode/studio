@@ -1,5 +1,6 @@
-import React, { useState, useEffect, useCallback, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
 import { useForm, FieldValues, Control, UseFormReturn } from 'react-hook-form';
+import { useRouter } from 'next/navigation';
 import {
   Form,
   FormField,
@@ -11,7 +12,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/auth-context';
-import { FormLabel } from './ui/form';
+import { FormLabel } from '@/components/ui/form';
 
 interface EmployerProfileFormProps {
 
@@ -33,6 +34,10 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
   const [message, setMessage] = useState('');
 
   const { user } = useAuth();
+  const router = useRouter();
+  const currentPath = useMemo(() => router.asPath, [router.asPath]);
+
+  const isEmployerProfile = currentPath.includes('/employer-profile');
 
   const form = useForm<FieldValues>({
     defaultValues: {
@@ -84,12 +89,14 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
     setError(false);
     setMessage('');
     try {
-      const response = await fetch('/api/profile/employer', {
+        const apiEndpoint = isEmployerProfile ? '/api/profile/employer' : '/api/profile/job-seeker';
+        
+        const response = await fetch(apiEndpoint, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
+            'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ ...formData, userId: user.id }), as RequestInit
+        body: JSON.stringify({ ...formData, userId: user.id }),
       });
 
       if (response.ok) {
@@ -107,7 +114,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, user?.id]);
+  }, [formData, user?.id, isEmployerProfile]);
 
   return (
     isLoading ? <p>Loading...</p> :

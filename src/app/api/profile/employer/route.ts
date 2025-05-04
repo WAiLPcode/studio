@@ -1,6 +1,6 @@
 
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/types/supabase';
+import { Database } from '@/types/supabase'
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
@@ -13,7 +13,7 @@ export const GET = async (request: Request) => {
   }
 
   const supabase = createRouteHandlerClient<Database>({ cookies });
-
+  
   try {
     const { data, error } = await supabase
       .from('employer_profiles')
@@ -23,9 +23,9 @@ export const GET = async (request: Request) => {
 
     if (error) {
         if (error.message === 'Multiple objects found') {
-            throw new Error('Multiple objects found');
-          }
-      return NextResponse.json({
+          throw new Error('Multiple objects found');
+        }
+        return NextResponse.json({
         companyName: '',
         email: '',
         companyWebsite: '',
@@ -34,7 +34,7 @@ export const GET = async (request: Request) => {
         companyLogoUrl: '',
         companySize: '',
       });
-    }
+      }
 
     return NextResponse.json({
       companyName: data?.company_name || '',

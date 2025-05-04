@@ -8,7 +8,7 @@ import {
   FormDescription,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from '@/components/ui/input';
+import { Input } from './ui/input';
 import { Button, buttonVariants } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
 
@@ -88,11 +88,14 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
   };
 
   const handleSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
+    const url = window.location.pathname
+    const isEmployer = url.includes('employer');
+
     event.preventDefault();
     setIsSubmitting(true);
     setError(false);
     setMessage('');
-
+    const apiEndpoint = isEmployer ? '/api/profile/employer' : '/api/profile/job-seeker';
     try {
       const response = await fetch('/api/profile/job-seeker', {
         method: 'POST',
@@ -116,7 +119,7 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
       setMessage('An unexpected error occurred while updating the profile');
     } finally {
       setIsSubmitting(false);
-    }
+    } 
   }, [formData, user?.id]);
 
   return (
