@@ -1,5 +1,6 @@
+"use client";
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
-import { useForm, FieldValues, Control, UseFormReturn, ErrorOption, Field, FieldArray, FieldArrayPath, FieldError, FieldErrors, FieldName, FieldRefs, FormState, InternalFieldName, RegisterOptions, SubmitErrorHandler, SubmitHandler, UseFormRegisterReturn } from 'react-hook-form';
+import { useForm, FieldValues, Control, UseFormReturn } from 'react-hook-form';
 import {
   Form,
   FormField,
@@ -8,11 +9,9 @@ import {
   FormDescription,
   FormMessage,
 } from '@/components/ui/form';
-import { Input } from './ui/input';
-import { Button, buttonVariants } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
-
-import { FormControl } from './ui/form';
 interface JobSeekerProfileFormProps {
   
 }
@@ -44,7 +43,7 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
   const [isLoading, setIsLoading] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState('')
 
   const fetchProfileData = async () => {
     if (!user?.id) return;
@@ -88,14 +87,11 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
   };
 
   const handleSubmit = useCallback(async (event: React.FormEvent<HTMLFormElement>) => {
-    const url = window.location.pathname
-    const isEmployer = url.includes('employer');
-
     event.preventDefault();
     setIsSubmitting(true);
     setError(false);
     setMessage('');
-    const apiEndpoint = isEmployer ? '/api/profile/employer' : '/api/profile/job-seeker';
+
     try {
       const response = await fetch('/api/profile/job-seeker', {
         method: 'POST',
@@ -119,7 +115,7 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
       setMessage('An unexpected error occurred while updating the profile');
     } finally {
       setIsSubmitting(false);
-    } 
+    }
   }, [formData, user?.id]);
 
   return (
@@ -284,12 +280,12 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
         <div className="flex justify-end space-x-2">
           <Button type="button" variant="outline">
             Cancel
-          </Button>
+          </Button> 
           <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? 'Submitting...' : 'Submit'}
         </Button>
         </div>
-        <div> 
+        <div>
         <p>Form Data: {JSON.stringify(formData,null,2)}</p>
         </div>
       </form>

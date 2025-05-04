@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useCallback, ReactNode, useMemo } from 'react';
+"use client";
+
+import React, { useState, useEffect, useCallback, ReactNode } from 'react';
 import { useForm, FieldValues, Control, UseFormReturn } from 'react-hook-form';
-import { useRouter } from 'next/navigation';
 import {
   Form,
   FormField,
@@ -34,12 +35,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
   const [message, setMessage] = useState('');
 
   const { user } = useAuth();
-  const router = useRouter();
-  const currentPath = useMemo(() => router.asPath, [router.asPath]);
-
-  const isEmployerProfile = currentPath.includes('/employer-profile');
-
-  const form = useForm<FieldValues>({
+    const form = useForm<FieldValues>({
     defaultValues: {
     },
   });
@@ -89,9 +85,9 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
     setError(false);
     setMessage('');
     try {
-        const apiEndpoint = isEmployerProfile ? '/api/profile/employer' : '/api/profile/job-seeker';
+       
         
-        const response = await fetch(apiEndpoint, {
+        const response = await fetch('/api/profile/employer', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -114,7 +110,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
     } finally {
       setIsSubmitting(false);
     }
-  }, [formData, user?.id, isEmployerProfile]);
+  }, [formData, user?.id]);
 
   return (
     isLoading ? <p>Loading...</p> :

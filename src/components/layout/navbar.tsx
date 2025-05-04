@@ -1,20 +1,15 @@
 'use client';
 
-import Link from 'next/link';
+import Link from 'next/link'
 import { Briefcase, LogIn, UserPlus, LogOut, User, Building2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePathname } from 'next/navigation';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
-
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
-import JobSeekerProfileForm from '../job-seeker-profile-form';
-import EmployerProfileForm from '../employer-profile-form';
-
 import { memo, useMemo, useCallback } from 'react';
 
 function Navbar() {
-  const pathname = usePathname();
+  const pathname = usePathname()
   const { user, logout } = useAuth();
 
   // Memoize the active state calculations to prevent unnecessary recalculations
@@ -28,9 +23,8 @@ function Navbar() {
   }, [pathname]);
 
   const handleLogout = useCallback(async () => {
-    await logout();
-    // No need to redirect, the auth context will handle it
-  }, [logout]);
+    await logout()
+  }, [logout])
 
   return (
     <nav className="bg-card border-b shadow-sm sticky top-0 z-50">
@@ -74,34 +68,15 @@ function Navbar() {
             {user ? (
               <>
                 {/* Show user role indicator */}
-                <div className="flex items-center mr-2 text-sm text-muted-foreground">
-
-                <Dialog>
-                      <DialogTrigger asChild>
-                        <Button variant='ghost' className='hover:bg-secondary' >
-                          <Edit className="h-4 w-4 mr-1" />
-                          Profile
-                        </Button>
-                      </DialogTrigger>
-                      <DialogContent className="sm:max-w-[425px]">
-                        <DialogHeader>
-                          <DialogTitle>Profile Update Form</DialogTitle>
-                          
-                      </DialogHeader>
-                      <div className='w-full h-full'>
-                        {user.role === 'employer' ? (
-                          <EmployerProfileForm />
-                        ) : (
-                          <JobSeekerProfileForm />
-                        )}
-                        <DialogClose asChild>
-                          <Button type="button" variant="outline">Cancel</Button>
-                        </DialogClose>
-                      </div></DialogContent>
-                    </Dialog>
-                 
-                </div>
-               
+                <div className="flex items-center mr-2 text-sm text-muted-foreground"></div>
+                <Link
+                  href={user.role === 'employer' ? '/employer-profile' : '/job-seeker-profile'}
+                >
+                  <Button variant="ghost" className="hover:bg-secondary">
+                    <Edit className="h-4 w-4 mr-1" />
+                    Profile
+                  </Button>
+                </Link>
                 
                 {/* Logout button */}
                 <Button
