@@ -1,7 +1,7 @@
 'use client';
 
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { supabaseClient } from '@/lib/supabase/client';
 
 type UserRole = 'job_seeker' | 'employer' | null;
 
@@ -24,7 +24,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const supabase = getSupabaseBrowserClient();
+  // Use the imported supabaseClient directly
 
   // Check for existing user session on mount
   useEffect(() => {
@@ -44,11 +44,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Login function
   const login = async (email: string, password: string) => {
-    if (!supabase) throw new Error('Database connection not available');
+    if (!supabaseClient) throw new Error('Database connection not available');
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('users')
         .select('id, email, role')
         .eq('email', email)
@@ -82,13 +82,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Register function
   const register = async (userData: any, role: UserRole) => {
-    if (!supabase) throw new Error('Database connection not available');
+    if (!supabaseClient) throw new Error('Database connection not available');
     if (!role) throw new Error('User role is required');
     
     setIsLoading(true);
     try {
       // Insert into users table
-      const { data, error } = await supabase
+      const { data, error } = await supabaseClient
         .from('users')
         .insert([
           {
@@ -106,7 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       // Insert profile data based on role
       if (role === 'job_seeker') {
-        const { error: profileError } = await supabase
+        const { error: profileError } = await supabaseClient
           .from('user_profiles')
           .insert([
             {
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (profileError) throw new Error(profileError.message);
       } else if (role === 'employer') {
-        const { error: profileError } = await supabase
+        const { error: profileError } = await supabaseClient
           .from('employer_profiles')
           .insert([
             {

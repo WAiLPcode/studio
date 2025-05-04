@@ -1,11 +1,16 @@
 'use client';
 
 import Link from 'next/link';
-import { Briefcase, LogIn, UserPlus, LogOut, User, Building2 } from 'lucide-react';
+import { Briefcase, LogIn, UserPlus, LogOut, User, Building2, Edit } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePathname } from 'next/navigation';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogClose } from '@/components/ui/dialog';
+
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
+import JobSeekerProfileForm from '../job-seeker-profile-form';
+import EmployerProfileForm from '../employer-profile-form';
+
 import { memo, useMemo, useCallback } from 'react';
 
 function Navbar() {
@@ -62,7 +67,7 @@ function Navbar() {
                 Post a Job
               </Button>
             </Link>
-          )}
+          )} 
           
           {/* Authentication buttons */}
           <div className="flex items-center gap-2">
@@ -70,18 +75,33 @@ function Navbar() {
               <>
                 {/* Show user role indicator */}
                 <div className="flex items-center mr-2 text-sm text-muted-foreground">
-                  {user.role === 'employer' ? (
-                    <>
-                      <Building2 className="h-4 w-4 mr-1" />
-                      <span>Employer</span>
-                    </>
-                  ) : (
-                    <>
-                      <User className="h-4 w-4 mr-1" />
-                      <span>Job Seeker</span>
-                    </>
-                  )}
+
+                <Dialog>
+                      <DialogTrigger asChild>
+                        <Button variant='ghost' className='hover:bg-secondary' >
+                          <Edit className="h-4 w-4 mr-1" />
+                          Profile
+                        </Button>
+                      </DialogTrigger>
+                      <DialogContent className="sm:max-w-[425px]">
+                        <DialogHeader>
+                          <DialogTitle>Profile Update Form</DialogTitle>
+                          
+                      </DialogHeader>
+                      <div className='w-full h-full'>
+                        {user.role === 'employer' ? (
+                          <EmployerProfileForm />
+                        ) : (
+                          <JobSeekerProfileForm />
+                        )}
+                        <DialogClose asChild>
+                          <Button type="button" variant="outline">Cancel</Button>
+                        </DialogClose>
+                      </div></DialogContent>
+                    </Dialog>
+                 
                 </div>
+               
                 
                 {/* Logout button */}
                 <Button
@@ -135,6 +155,5 @@ function Navbar() {
     </nav>
   );
 }
-
-// Export a memoized version of the Navbar component to prevent unnecessary re-renders
+//Export a memoized version of the Navbar component to prevent unnecessary re-renders
 export default memo(Navbar);

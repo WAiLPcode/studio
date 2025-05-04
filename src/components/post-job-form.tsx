@@ -16,7 +16,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { getSupabaseBrowserClient } from '@/lib/supabase/client';
+import { supabaseClient } from '@/lib/supabase/client';
 import { useToast } from "@/hooks/use-toast"; // Import useToast
 import { useState } from 'react';
 import { Loader2 } from 'lucide-react'; // Import Loader2 for loading state
@@ -40,7 +40,6 @@ const formSchema = z.object({
 });
 
 export default function PostJobForm() {
-  const supabase = getSupabaseBrowserClient();
   const { toast } = useToast(); // Get toast function
   const [isSubmitting, setIsSubmitting] = useState(false); // Loading state
 
@@ -58,7 +57,11 @@ export default function PostJobForm() {
   async function onSubmit(values: z.infer<typeof formSchema>) {
     setIsSubmitting(true); // Start loading
     try {
-        const { error } = await supabase
+        if (!supabaseClient) {
+            throw new Error('Supabase client is not initialized. Please try again.');
+        }
+        
+        const { error } = await supabaseClient
             .from('job_postings')
             .insert([
                 {
