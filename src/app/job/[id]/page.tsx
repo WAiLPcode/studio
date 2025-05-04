@@ -1,26 +1,25 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter, useParams } from 'next/navigation';
+import { useRouter, useParams, useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { ArrowLeft, Building, MapPin, Info, CheckCircle, Briefcase, TrendingUp, DollarSign, CalendarClock, Clock } from 'lucide-react'; // Added icons
+import { Button } from '@/components/ui/button'; // Added icons
+import { ArrowLeft, Building, MapPin, Info, CheckCircle, Briefcase, TrendingUp, DollarSign, CalendarClock, Clock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { type JobPosting } from '@/types';
+import { type JobPosting, type JobPostingWithEmployerProfile } from '@/types';
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { Badge } from '@/components/ui/badge';
 import { format, formatDistanceToNow } from 'date-fns'; // Import date formatting
-import { supabaseClient } from '@/lib/supabase/client';
-
+import { supabaseClient } from '@/lib/supabase/client'; // Import supabase client
 
 export default function JobDetailPage() {
   const params = useParams();
   const router = useRouter();
   const jobId = params.id as string;
   const [job, setJob] = useState<JobPosting | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
 
   const LoadingSkeleton = () => (
@@ -69,27 +68,59 @@ export default function JobDetailPage() {
   const fetchJobDetails = useCallback(async () => {
      if (!jobId || !supabaseClient) return;
        setLoading(true);
-     setError(null);
+      setError(null);
      try {
-         const { data, error: fetchError } = await supabaseClient
-             .from('job_postings')
-             .select('*')
-             .eq('id', jobId)
-             .single();
+        const { data, error: fetchError } = await supabaseClient
+          .from('job_postings') // Start with job_postings
+          .select(
+            `
+              *,
+              users!job_postings_employer_user_id_fkey(
+                employer_profiles!user_profiles_user_id_fkey(
+                  company_name,
+                  company_website
+                )
+              )
+            `
+          )
+          .eq('id', jobId) // Filter by jobId
+          .throwOnError() // Throw an error if there is a Supabase error
+          .single(); // Get a single result
 
          if (fetchError) {
              console.error('Supabase fetch error:', fetchError);
              if (fetchError.code === 'PGRST116') {
-                 setError(`Job with ID ${jobId} not found.`);
+               setError(`Job with ID ${jobId} not found.`);
              } else {
                  setError(
                      `Failed to fetch job details. Error: ${fetchError.message || 'Unknown error'}.`
                  );
              }
              setJob(null);
-             return;
+           return;
          }
-         setJob(data);
+          if (!data) {
+            setError(`Job with ID ${jobId} not found.`);
+            setJob(null);
+            return;
+           }
+
+
+         
+         
+
+
+
+
+          setJob({
+              ...data ,
+             company_name: data.employer_profiles?.company_name,
+             company_website: data.employer_profiles?.company_website,
+            
+           });
+
+
+          
      } catch (err: any) {
       console.error('Unexpected fetch error:', err);
       setError(err.message || 'An unexpected error occurred.');
@@ -158,9 +189,13 @@ export default function JobDetailPage() {
            <CardDescription className="pt-2 space-y-1.5">
              <div className="flex items-center gap-2 text-muted-foreground">
                <Building className="w-4 h-4 flex-shrink-0" />
-               <span>{job?.company_name}</span>
-             </div>
-             <div className="flex items-center gap-2 text-muted-foreground">
+                {job?.company_website  && (
+                  <Link href={job.company_website} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary transition-colors">{(job?.company_name)}</Link>
+                )}
+                {!job?.company_website && <span>{job?.company_name}</span>}
+              </div>
+                <div className="flex items-center gap-2 text-muted-foreground">
+               
                <MapPin className="w-4 h-4 flex-shrink-0" />
                <span>{job?.location}</span>
              </div>

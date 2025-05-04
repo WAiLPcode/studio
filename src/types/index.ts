@@ -1,5 +1,6 @@
 
 export interface JobPosting {
+  company_website: any;
   id: string;
   title: string;
   company_name: string;
@@ -15,3 +16,9 @@ export interface JobPosting {
   created_at: string; // Assuming this is always present
   updated_at?: string; // Added updated_at as it's used in ordering
 }
+
+export interface JobPostingWithEmployerProfile extends JobPosting {
+  company_name: string;
+  company_website: string;
+}
+
