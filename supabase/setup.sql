@@ -35,7 +35,7 @@ CREATE TABLE user_profiles (
 
 -- 3. Employer Profiles Table: Stores information specific to employers.
 CREATE TABLE employer_profiles (
-    user_id UUID PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE, -- Foreign Key linking to users table (one-to-one)
+    user_id UUID PRIMARY KEY NOT NULL REFERENCES users(id) ON DELETE CASCADE, -- Foreign Key linking to users table (one-to-one)
     company_name VARCHAR(255) NOT NULL,
     company_website TEXT,
     company_description TEXT,
@@ -151,6 +151,13 @@ CREATE TRIGGER set_timestamp_job_applications
 BEFORE UPDATE ON job_applications
 FOR EACH ROW
 EXECUTE FUNCTION trigger_set_timestamp();
+
+-- Remove the trigger function sync_user_data_to_employer_profiles
+DROP FUNCTION IF EXISTS public.sync_user_data_to_employer_profiles();
+
+-- Remove trigger on_user_change
+DROP TRIGGER IF EXISTS on_user_change ON auth.users;
+
 
 -- Enable Row Level Security (RLS) for all tables
 -- For detailed policies, see rls_policies.sql
