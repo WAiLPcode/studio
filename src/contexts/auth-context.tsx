@@ -25,10 +25,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   // Use the imported supabaseClient directly
-
-  // Check for existing user session on mount
   useEffect(() => {
-    // In a real app, this would check for an existing session token
     // For this prototype, we'll check localStorage
     const storedUser = localStorage.getItem('jobfinder_user');
     if (storedUser) {
@@ -42,7 +39,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  // Login function
   const login = async (email: string, password: string) => {
     if (!supabaseClient) throw new Error('Database connection not available');
     
@@ -52,7 +48,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .from('users')
         .select('id, email, role')
         .eq('email', email)
-        .eq('encrypted_password', password) // Note: In a real app, this would use proper password hashing
+        .eq('encrypted_password', password)
         .single();
 
       if (error || !data) {
@@ -65,89 +61,48 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         role: data.role as UserRole
       };
 
-      // Save user to state and localStorage
       setUser(userData);
       localStorage.setItem('jobfinder_user', JSON.stringify(userData));
     } finally {
       setIsLoading(false);
     }
   };
-
-  // Logout function
   const logout = async () => {
-    // Clear user from state and localStorage
     setUser(null);
     localStorage.removeItem('jobfinder_user');
   };
-
-  // Register function
   const register = async (userData: any, role: UserRole) => {
     if (!supabaseClient) throw new Error('Database connection not available');
     if (!role) throw new Error('User role is required');
     
     setIsLoading(true);
     try {
-      // Insert into users table
-      const { data, error } = await supabaseClient
-        .from('users')
-        .insert([
-          {
-            email: userData.email,
-            encrypted_password: userData.password, // Note: In a real app, this would be hashed
-            role: role
-          }
-        ])
-        .select('id, email, role')
-        .single();
-
-      if (error || !data) {
-        throw new Error(error?.message || 'Failed to register user');
+      const newUserRole: UserRole = role;
+      const { data: { user }, error: signUpError } = await supabaseClient.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+      });
+      
+      if (signUpError || !user) {
+          throw new Error(signUpError?.message || 'Failed to register user');
       }
 
-      // Insert profile data based on role
-      if (role === 'job_seeker') {
-        const { error: profileError } = await supabaseClient
-          .from('user_profiles')
-          .insert([
-            {
-              user_id: data.id,
-              first_name: userData.firstName,
-              last_name: userData.lastName,
-              headline: userData.headline || null,
-              bio: userData.bio || null
-            }
-          ]);
-
-        if (profileError) throw new Error(profileError.message);
-      } else if (role === 'employer') {
-        const { error: profileError } = await supabaseClient
-          .from('employer_profiles')
-          .insert([
-            {
-              user_id: data.id,
-              company_name: userData.companyName,
-              company_website: userData.companyWebsite || null,
-              company_description: userData.companyDescription || null,
-              industry: userData.industry || null
-            }
-          ]);
-
-        if (profileError) throw new Error(profileError.message);
-      }
-
-      // Log the user in after successful registration
       const newUser: User = {
-        id: data.id,
-        email: data.email,
-        role: data.role as UserRole
+        id: user.id,
+        email: user.email || '',
+        role: newUserRole,
       };
-
       setUser(newUser);
       localStorage.setItem('jobfinder_user', JSON.stringify(newUser));
+    } catch (error) {
+      console.error('Registration error:', error);
+      throw new Error((error as any)?.message || 'An unexpected error occurred during registration.');
     } finally {
       setIsLoading(false);
     }
   };
+  
+  
 
   const value = {
     user,
@@ -155,7 +110,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     logout,
     register
-  };
+  }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

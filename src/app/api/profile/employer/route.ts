@@ -1,6 +1,6 @@
 
 import { createRouteHandlerClient } from '@supabase/auth-helpers-nextjs';
-import { Database } from '@/types/supabase'
+import { Database } from '@/types';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 
@@ -13,28 +13,44 @@ export const GET = async (request: Request) => {
   }
 
   const supabase = createRouteHandlerClient<Database>({ cookies });
-  
+
   try {
     const { data, error } = await supabase
-      .from('employer_profiles')
-      .select('*')
-      .eq('user_id', userId)
-      .single();
+        .from('employer_profiles')
+        .select('*')
+        .eq('user_id', userId)
+        .single();
 
     if (error) {
-        if (error.message === 'Multiple objects found') {
-          throw new Error('Multiple objects found');
-        }
-        return NextResponse.json({
-        companyName: '',
-        email: '',
-        companyWebsite: '',
-        industry: '',
-        companyDescription: '',
-        companyLogoUrl: '',
-        companySize: '',
-      });
+      if (error.message === 'Multiple objects found') {
+        throw new Error('Multiple objects found');
       }
+      console.error('Error fetching employer profile:', error);
+    }
+
+    if (!data) {
+      const { data: userData, error: userError } = await supabase
+          .from('users')
+          .select('email, company_name, company_website, industry, company_description, company_logo_url, company_size')
+          .eq('id', userId)
+          .single();
+
+      if (userError) console.error('Error fetching user email:', userError);
+
+      if (!userData) {
+        return NextResponse.json({
+          companyName: '',
+          email: '',
+          companyWebsite: '',
+          industry: '',
+          companyDescription: '',
+          companyLogoUrl: '',
+          companySize: '',
+        });
+      }
+      return NextResponse.json({
+      });
+    }
 
     return NextResponse.json({
       companyName: data?.company_name || '',
@@ -47,9 +63,13 @@ export const GET = async (request: Request) => {
     });
   } catch (error) {
     console.error('Error fetching employer profile:', error);
-    return NextResponse.json({ error: 'Error fetching employer profile' }, { status: 500 });
+    return NextResponse.json(
+      { error: 'Error fetching employer profile' },
+      { status: 500 },
+    )
   }
-};
+}
+
 
 export const POST = async (request: Request) => {
   const body = await request.json();

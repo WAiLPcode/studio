@@ -12,11 +12,10 @@ CREATE POLICY "Users can view own data" ON public.users
     FOR SELECT
     USING (id = auth.uid());
 
+-- Create policy for users to not update their own data.
 CREATE POLICY "Users can update own data" ON public.users
     FOR UPDATE
-    USING (id = auth.uid());
-
--- Create policy for anyone to insert users
+    USING (false);
 DROP POLICY IF EXISTS "Anyone can insert users" ON public.users;
 CREATE POLICY "Anyone can insert into users" ON public.users
     FOR INSERT

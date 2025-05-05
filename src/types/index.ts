@@ -1,4 +1,6 @@
+export type { Database } from "./supabase";
 
+  
 export interface JobPosting {
   company_website: any;
   id: string;

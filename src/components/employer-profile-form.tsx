@@ -24,13 +24,21 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(false);
   const [message, setMessage] = useState('');
-    const defaultValues = {
+    const defaultValues: FieldValues = {
     companyName: '',
     email: '',
     companyWebsite: '',
+    industry: '',
+    companyDescription: '',
+    companyLogoUrl: '',
+    companySize: '',
   };
 
-  const { user } = useAuth();
+  const { user, isLoading: isUserLoading } = useAuth();
+  
+    
+  
+  
     const form = useForm<FieldValues>({
     
     
@@ -46,16 +54,20 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
   const { control } = form;
 
   const fetchProfileData = async () => {
-    if (!user?.id) return;
+    if (!user?.id || isUserLoading) return;
     setIsLoading(true);
     try {
       const response = await fetch(`/api/profile/employer?userId=${user.id}`);
       if (response.ok) {
         const data = await response.json();
-        form.reset(data);
+        if(Object.values(data).some(value => value !== '')){
+          form.reset(data);
+        }else {
+          form.setValue('email', user.email ?? '');
+        }
       } else {
         // If no data exist for the user, set the form to empty values
-        form.reset();
+        form.setValue('email', user.email ?? '');
         console.error('Error fetching profile data:', response.statusText);
       }
     } catch (error) {
@@ -108,7 +120,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
             render={({ field }) => (
               <FormItem className='space-y-2'>
                 <FormLabel>Company Name</FormLabel>
-                <FormControl >
+                <FormControl>
                   <Input placeholder="Company Name" {...field} name="companyName"  />
                 </FormControl>
                 <FormMessage />
@@ -122,7 +134,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
             render={({ field }) => (
               <FormItem className='space-y-2'>
                 <FormLabel>Email</FormLabel>
-                <FormControl >
+                <FormControl>
                   <Input placeholder="Email" {...field} name="email"  />
                 </FormControl>
                 <FormMessage />
@@ -136,7 +148,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
             render={({ field }) => (
               <FormItem className='space-y-2'>
                 <FormLabel>Company Website</FormLabel>
-                <FormControl >
+                <FormControl>
                   <Input placeholder="Company Website" {...field} name="companyWebsite" />
                 </FormControl>
                 <FormMessage />
@@ -150,7 +162,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
             render={({ field }) => (
               <FormItem className='space-y-2'>
                 <FormLabel>Industry</FormLabel>
-                <FormControl >
+                <FormControl>
                   <Input placeholder="Industry" {...field} name="industry" />
                 </FormControl>
                 <FormMessage />
@@ -164,7 +176,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
             render={({ field }) => (
               <FormItem className='space-y-2'>
                 <FormLabel>Company Description</FormLabel>
-                <FormControl >
+                <FormControl>
                   <Input placeholder="Company Description" {...field} name="companyDescription" />
                 </FormControl>
                 <FormMessage />
@@ -178,7 +190,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
             render={({ field }) => (
               <FormItem className='space-y-2'>
                 <FormLabel>Company Logo URL</FormLabel>
-                <FormControl >
+                <FormControl>
                   <Input placeholder="Company Logo URL" {...field} name="companyLogoUrl" />
                 </FormControl>
                 <FormMessage />
@@ -192,7 +204,7 @@ const EmployerProfileForm: React.FC<EmployerProfileFormProps> = () : ReactNode =
             render={({ field }) => (
               <FormItem className='space-y-2'>
                 <FormLabel>Company Size</FormLabel>
-                <FormControl >
+                <FormControl>
                   <Input placeholder="Company Size" {...field} name="companySize" />
                 </FormControl>
                 <FormMessage />
