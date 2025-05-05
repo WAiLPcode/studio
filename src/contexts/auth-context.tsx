@@ -28,18 +28,66 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Check for existing user session on mount
   useEffect(() => {
-    // In a real app, this would check for an existing session token
-    // For this prototype, we'll check localStorage
-    const storedUser = localStorage.getItem('jobfinder_user');
-    if (storedUser) {
+    const checkSession = async () => {
       try {
-        setUser(JSON.parse(storedUser));
+        if (!supabaseClient) {
+          console.error('Supabase client not initialized');
+          setIsLoading(false);
+          return;
+        }
+        // Check for an existing Supabase session
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+        
+        if (error) {
+          throw error;
+        }
+        
+        if (session?.user) {
+          // Get user data from the users table
+          const { data, error: userError } = await supabaseClient
+            .from('users')
+            .select('id, email, role')
+            .eq('id', session.user.id)
+            .single();
+            
+          if (data && !userError) {
+            const userData: User = {
+              id: data.id,
+              email: data.email,
+              role: data.role as UserRole
+            };
+            
+            setUser(userData);
+            localStorage.setItem('jobfinder_user', JSON.stringify(userData));
+          } else {
+            // If we can't get user data, sign out
+            await supabaseClient.auth.signOut();
+            localStorage.removeItem('jobfinder_user');
+          }
+        } else {
+          // No session, check localStorage as fallback
+          const storedUser = localStorage.getItem('jobfinder_user');
+          if (storedUser) {
+            try {
+              // Verify the stored user with a session check
+              const userData = JSON.parse(storedUser);
+              // If no active session but localStorage data exists, clear it
+              localStorage.removeItem('jobfinder_user');
+            } catch (error) {
+              console.error('Failed to parse stored user:', error);
+              localStorage.removeItem('jobfinder_user');
+            }
+          }
+        }
       } catch (error) {
-        console.error('Failed to parse stored user:', error);
+        console.error('Session check error:', error);
         localStorage.removeItem('jobfinder_user');
+      } finally {
+        setIsLoading(false);
       }
-    }
-    setIsLoading(false);
+    };
+    
+    checkSession();
   }, []);
 
   // Login function
@@ -48,15 +96,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabaseClient
+      // First, use Supabase's auth.signInWithPassword method
+      const { data: authData, error: authError } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (authError) {
+        throw new Error(authError.message || 'Invalid email or password');
+      }
+
+      if (!authData.user) {
+        throw new Error('No user data returned from authentication');
+      }
+
+      // Now get the user's role from the users table
+      const { data, error } = await supabaseClient!
         .from('users')
         .select('id, email, role')
-        .eq('email', email)
-        .eq('encrypted_password', password) // Note: In a real app, this would use proper password hashing
+        .eq('id', authData.user.id)
         .single();
 
       if (error || !data) {
-        throw new Error('Invalid email or password');
+        // If we can't get the role, sign out and throw error
+        await supabaseClient!.auth.signOut();
+        throw new Error('Failed to retrieve user data');
       }
 
       const userData: User = {
@@ -75,9 +139,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Logout function
   const logout = async () => {
-    // Clear user from state and localStorage
-    setUser(null);
-    localStorage.removeItem('jobfinder_user');
+    if (!supabaseClient) throw new Error('Database connection not available');
+    
+    try {
+      // Sign out from Supabase Auth
+      await supabaseClient.auth.signOut();
+      
+      // Clear user from state and localStorage
+      setUser(null);
+      localStorage.removeItem('jobfinder_user');
+    } catch (error) {
+      console.error('Error during logout:', error);
+      // Still clear local state even if the server logout fails
+      setUser(null);
+      localStorage.removeItem('jobfinder_user');
+    }
   };
 
   // Register function
@@ -87,26 +163,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setIsLoading(true);
     try {
-      // Insert into users table
+      // First, create the user in Supabase Auth
+      const { data: authData, error: authError } = await supabaseClient.auth.signUp({
+        email: userData.email,
+        password: userData.password,
+        options: {
+          data: {
+            role: role // Store role in user metadata
+          }
+        }
+      });
+
+      if (authError) {
+        console.error('Authentication error during registration:', authError);
+        throw new Error(authError.message || 'Failed to register user');
+      }
+
+      if (!authData.user) {
+        throw new Error('No user data returned from registration');
+      }
+
+      // Insert into users table with the auth user's ID
       const { data, error } = await supabaseClient
         .from('users')
         .insert([
           {
+            id: authData.user.id, // Use the ID from auth
             email: userData.email,
-            encrypted_password: userData.password, // Note: In a real app, this would be hashed
             role: role
           }
         ])
         .select('id, email, role')
         .single();
 
-      if (error || !data) {
+      if (error) {
+        console.error('Registration error details:', error);
+        // Try to clean up the auth user if the database insert fails
+        await supabaseClient!.auth.admin.deleteUser(authData.user.id).catch(e => 
+          console.error('Failed to clean up auth user after error:', e)
+        );
         throw new Error(error?.message || 'Failed to register user');
+      }
+      
+      if (!data) {
+        throw new Error('No data returned from registration');
       }
 
       // Insert profile data based on role
       if (role === 'job_seeker') {
-        const { error: profileError } = await supabaseClient
+        // We've already checked supabaseClient at the beginning of this function
+        const { error: profileError } = await supabaseClient!
           .from('user_profiles')
           .insert([
             {
@@ -118,9 +224,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           ]);
 
-        if (profileError) throw new Error(profileError.message);
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          throw new Error(profileError.message);
+        }
       } else if (role === 'employer') {
-        const { error: profileError } = await supabaseClient
+        // We've already checked supabaseClient at the beginning of this function
+        const { error: profileError } = await supabaseClient!
           .from('employer_profiles')
           .insert([
             {
@@ -132,7 +242,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }
           ]);
 
-        if (profileError) throw new Error(profileError.message);
+        if (profileError) {
+          console.error('Employer profile creation error:', profileError);
+          throw new Error(profileError.message);
+        }
       }
 
       // Log the user in after successful registration

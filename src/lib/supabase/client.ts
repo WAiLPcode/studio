@@ -13,7 +13,21 @@ if (typeof window !== 'undefined') {
     if (!supabaseUrl || !supabaseAnonKey) {
         throw new Error('Supabase URL or Anon Key are not set in the environment variables.');
       }
-    supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey);
+    // Create the Supabase client with explicit headers to include the apikey
+    supabaseClient = createBrowserClient(supabaseUrl, supabaseAnonKey, {
+      global: {
+        headers: {
+          apikey: supabaseAnonKey,
+          Authorization: `Bearer ${supabaseAnonKey}`,
+          'Content-Type': 'application/json'
+        }
+      },
+      // Ensure auth is properly configured for RLS policies
+      auth: {
+        autoRefreshToken: true,
+        persistSession: true
+      }
+    });
   }
 }
 

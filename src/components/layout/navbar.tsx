@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/auth-context';
 import { memo, useMemo, useCallback } from 'react';
+import { ProfileUpdateModal } from '@/components/profile-update-modal';
 
 function Navbar() {
   const pathname = usePathname();
@@ -68,19 +69,9 @@ function Navbar() {
           <div className="flex items-center gap-2">
             {user ? (
               <>
-                {/* Show user role indicator */}
-                <div className="flex items-center mr-2 text-sm text-muted-foreground">
-                  {user.role === 'employer' ? (
-                    <>
-                      <Building2 className="h-4 w-4 mr-1" />
-                      <span>Employer</span>
-                    </>
-                  ) : (
-                    <>
-                      <User className="h-4 w-4 mr-1" />
-                      <span>Job Seeker</span>
-                    </>
-                  )}
+                {/* Profile update button */}
+                <div className="flex items-center mr-2">
+                  <ProfileUpdateModal />
                 </div>
                 
                 {/* Logout button */}

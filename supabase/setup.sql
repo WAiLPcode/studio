@@ -6,9 +6,8 @@ CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 -- 1. Users Table: Stores basic login information and role.
 -- Potentially links to Supabase Auth users via the id.
 CREATE TABLE users (
-    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(), -- Primary Key, potentially references supabase.auth.users.id
+    id UUID PRIMARY KEY, -- Primary Key, references supabase.auth.users.id
     email VARCHAR(255) UNIQUE NOT NULL,
-    encrypted_password TEXT NOT NULL, -- Store hashed passwords, never plaintext
     role VARCHAR(50) NOT NULL CHECK (role IN ('job_seeker', 'employer')), -- User role
     created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
@@ -120,10 +119,11 @@ CREATE INDEX idx_job_applications_status ON job_applications(status);
 CREATE OR REPLACE FUNCTION trigger_set_timestamp()
 RETURNS TRIGGER AS $$
 BEGIN
-  NEW.updated_at = NOW();
-  RETURN NEW;
+    NEW.updated_at = NOW();
+    RETURN NEW;
 END;
-$$ LANGUAGE plpgsql;
+$$ LANGUAGE plpgsql SET search_path = '';
+
 
 -- Apply the trigger function to tables with `updated_at`
 CREATE TRIGGER set_timestamp_users
