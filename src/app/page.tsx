@@ -38,53 +38,47 @@ export default function Home() {
 
   const fetchJobs = useCallback(async () => {
     setLoading(true);
-    setError(null);
+      setError(null);
+      try {
+          const lowerCaseFilter = locationFilter.toLowerCase().trim();
+          let query = supabaseClient
+              ?.from('job_postings')
+              .select('*')
+              .order('updated_at', { ascending: false });
+          if (lowerCaseFilter !== '') {
+              query = query?.ilike('location', `%${lowerCaseFilter}%`);
+          }
 
-    if (!supabaseClient ) {
-        setError('Supabase client is not initialized. Please make sure the code is running in a browser environment.');
-        setLoading(false); 
-        return;
+          const { data, error } = await query!;
+          if (error) {
+              console.error('Supabase fetch error:', error);
+              setError(
+                  `Failed to fetch job listings. Error: ${error.message || 'Unknown error'}.`
+              );
+              return;
+          }
+          setJobs(data || []);
+      } catch (err: any) {
+          setError(err.message || 'An unexpected error occurred.');
+      } finally {
+          setLoading(false);
       }
-      const lowerCaseFilter = locationFilter.toLowerCase().trim();
-    try {
-      let query = supabaseClient
-            .from('job_postings')
-            .select('*')
-            .order('updated_at', { ascending: false });
-      if (lowerCaseFilter !== '') {
-        query = query.ilike('location', `%${lowerCaseFilter}%`);
-      }
-
-      const { data, error } = await query;
-      if (error) {
-             console.error('Supabase fetch error:', error);
-            setError(
-                `Failed to fetch job listings. Error: ${error.message || 'Unknown error'}.` 
-            );
-            return;
-        }
-         setJobs(data || []);
-    } catch (err: any) {
-      setError(err.message || 'An unexpected error occurred.');
-    } finally {
-      setLoading(false);
-    }
-  }, [locationFilter]); 
+  }, [locationFilter]);
 
 
   useEffect(() => {
     fetchJobs();
-  }, [fetchJobs]);
-    const filteredJobs = jobs;
+  }, [fetchJobs, ]);
+  const filteredJobs = jobs;
 
   const handleClearFilter = () => {
     setLocationFilter('');
   };
 
   // Memoize the rendered job cards block to avoid conditional hook calls
-  const renderedJobCards = useMemo(() => {
-    if (filteredJobs.length > 0) {
-      return (
+  const renderedJobCards = useMemo(() => {    
+      if (filteredJobs.length > 0) {
+          return (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           {filteredJobs.map((job) => (
             <JobCard key={job.id} job={job} />

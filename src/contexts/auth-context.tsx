@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   }, []);
 
-  const createProfile = async (userId: string, userData: any, profileType: 'user_profiles' | 'employer_profiles') => {
+  const createProfile = async (userId: string, userData: any, profileType: 'user_profiles' | 'employer_profiles' ) => {
     try {
         if (!supabaseClient) throw new Error('Database connection not available');
         if(profileType === 'user_profiles'){
@@ -48,21 +48,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .insert([{
           user_id: userId,
           first_name: userData.firstName,
-          last_name: userData.lastName,
           headline: userData.headline,
           bio: userData.bio,
         }]);
-        if (error) {
-            throw new Error('Database error creating profile');
-        }
+        if (error) throw new Error('Database error creating profile');
         }else{
         const { error } = await supabaseClient
         .from('employer_profiles')
           .insert([{
             user_id: userId,
-            email: userData.email,
-            role: 'employer',
-            password: userData.password,
+            first_name: userData.firstName,
+            last_name: userData.lastName,
+           
+            company_bio: userData.companyDescription,
+            
             company_name: userData.companyName,            
             company_website: userData.companyWebsite,
             company_description: userData.companyDescription,
@@ -81,28 +80,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabaseClient
-        .from('users')
-        .select('id, email, role')
-        .eq('email', email)
-        .eq('encrypted_password', password)
-        .single();
+      const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password,
+      });
 
-      if (error || !data) {
+      if (error || !data?.user) {
         throw new Error('Invalid email or password');
       }
 
       const userData: User = {
-        id: data.id,
-        email: data.email,
-        role: data.role as UserRole
+        id: data.user?.id || '',
+        email: data.user?.email || '',
+        role: null,
       };
 
       setUser(userData);
       localStorage.setItem('jobfinder_user', JSON.stringify(userData));
-    } finally {
+    }catch(error){
+        throw new Error((error as any)?.message || 'Failed to login user');
+    }finally {
       setIsLoading(false);
-    }
+    };
   };
   const logout = async () => {
     setUser(null);
@@ -112,51 +111,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!supabaseClient) throw new Error('Database connection not available');
     if (!role) throw new Error('User role is required');
     
-    setIsLoading(true);
+     setIsLoading(true);
     try {
       const newUserRole: UserRole = role;
       const { data: { user }, error: signUpError } = await supabaseClient.auth.signUp({
         email: userData.email,
         password: userData.password,
+        options: { emailRedirectTo: `${window.location.origin}/auth/callback` },
       });
-
-      if (signUpError) {
-        if (signUpError?.message === 'User already registered') {
-          console.log('User already registered:', userData.email);
-          return;
-        } else {
-          throw new Error(signUpError?.message || 'Failed to register user');
-        }
+       if (signUpError) {
+          if(signUpError.message){
+            if (signUpError.message.includes('User already registered')) {
+                // Handle 'User already registered' specifically if needed
+                console.warn(`User already registered: ${userData.email}`);
+                throw new Error('User already registered');
+            } else {
+              
+                throw new Error(signUpError?.message || 'Failed to register user');
+            }
+          }
       }
-
-    if (!user) {
+      if (!user) {
       throw new Error('Failed to register user');
     }
-      const newUser: User = {
-        id: user.id,
-        email: user.email || '',
-        role: newUserRole,
-      };
-      if(role === 'job_seeker'){
-        await createProfile(newUser.id, userData, 'user_profiles');
-      }else if(role === 'employer'){
-        await createProfile(newUser.id, userData, 'employer_profiles');
-      }else{
-        throw new Error('User role not supported');
-
-      };
-      
-      try {
-        await createProfile(newUser.id, newUser.role, userData);
-      } catch (error) {
-        throw new Error((error as any)?.message || 'Failed to create user profile');
-      }
+      const { error: insertError } = await supabaseClient.from('users').insert([{ id: user.id, email: user.email, role: role, encrypted_password: userData.password }]);
+        if (insertError) {
+            throw new Error('Failed to add user to table');
+    }
+        const newUser: User = {
+            id: user.id,
+            email: user.email || '',
+            role: newUserRole,
+        };
+        if (role === 'job_seeker') {
+            await createProfile(newUser.id, userData, 'user_profiles');
+        } else if (role === 'employer') {
+            console.log('userData', userData);
+            await createProfile(newUser.id, userData, 'employer_profiles');
+        } else {
+            throw new Error('User role not supported');
+        }
       
       
-      setUser(newUser);
-      localStorage.setItem('jobfinder_user', JSON.stringify(newUser));
+        setUser(newUser);
+        localStorage.setItem('jobfinder_user', JSON.stringify(newUser));
     } catch (error) {
-      throw new Error((error as any)?.message || 'Failed to register user');
+        if (error instanceof TypeError) {
+            throw new Error('Network error occurred.');
+          } else {
+            throw new Error((error as any)?.message || 'Failed to register user');
+          }
+      
     } finally {
       setIsLoading(false);
       };

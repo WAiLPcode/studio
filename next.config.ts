@@ -49,12 +49,11 @@ const nextConfig = {
         '@': './src',
       },
     },
-    // Additional experimental features for Next.js 15
-    optimizePackageImports: ['@radix-ui/react-*', 'lucide-react', 'recharts', '@tanstack/react-query', 'date-fns', 'zod'],
-    // Enable server actions for better performance
-    serverActions: true,
-     serverExternalPackages: [],
-     // Enable partial prerendering for faster initial loads - requires canary
+     optimizePackageImports: ['@radix-ui/react-*', 'lucide-react', 'recharts', '@tanstack/react-query', 'date-fns', 'zod'],
+
+    serverActions: {
+      enabled:true
+    }
   },
   // Configure page performance
   poweredByHeader: false,
