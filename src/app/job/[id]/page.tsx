@@ -105,6 +105,9 @@ export default function JobDetailPage() {
             return;
            }
 
+           // Log the data structure to verify the correct path to company information
+           console.log('Job data structure:', JSON.stringify(data, null, 2));
+
 
          
          
@@ -112,12 +115,24 @@ export default function JobDetailPage() {
 
 
 
+          // The query returns a nested structure that needs to be properly accessed
+          // Based on the Supabase query, the structure is:
+          // data.users -> employer_profiles
+          
           setJob({
-              ...data ,
-             company_name: data.employer_profiles?.company_name,
-             company_website: data.employer_profiles?.company_website,
-            
-           });
+              ...data,
+              // Remove users and employer_profiles from the data to avoid duplication
+              users: undefined,
+              // Add company information from the nested structure
+              company_name: data.users?.employer_profiles?.company_name || 'Company name not available',
+              company_website: data.users?.employer_profiles?.company_website
+          });
+          
+          // Log the data structure to debug
+          console.log('Raw data structure:', {
+            users: data.users,
+            employer_profiles: data.users?.employer_profiles
+          });
 
 
           
@@ -176,7 +191,7 @@ export default function JobDetailPage() {
    }
    // Since we've already checked for null job above, we can safely assert job is non-null here
    // TypeScript still needs help understanding this
-   const timeAgo = job?.created_at ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true }) : '';
+   const timeAgo = job?.posted_at ? formatDistanceToNow(new Date(job.posted_at), { addSuffix: true }) : '';
    const expiryDate = job?.expires_at ? format(new Date(job.expires_at), 'PPP') : 'N/A'; // Format expiry date
    return (
      <div className="max-w-3xl mx-auto space-y-4">
@@ -185,7 +200,7 @@ export default function JobDetailPage() {
        </Button>
        <Card className="shadow-lg border rounded-lg overflow-hidden">
          <CardHeader className="bg-card pb-4">
-           <CardTitle className="text-2xl font-bold text-primary">{job?.title}</CardTitle>
+           <CardTitle className="text-2xl font-bold text-primary">{job?.job_title}</CardTitle>
            <CardDescription className="pt-2 space-y-1.5">
              <div className="flex items-center gap-2 text-muted-foreground">
                <Building className="w-4 h-4 flex-shrink-0" />
@@ -231,7 +246,7 @@ export default function JobDetailPage() {
                Job Description
              </h3>
              <div className="prose prose-sm max-w-none text-foreground/90 whitespace-pre-wrap">
-               {job?.description}
+               {job?.job_description}
              </div>
            </div>
            {/* Application Instructions Section */}

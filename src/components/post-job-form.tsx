@@ -61,14 +61,20 @@ export default function PostJobForm() {
             throw new Error('Supabase client is not initialized. Please try again.');
         }
         
+        // Get the current user's ID for employer_user_id
+        const { data: { user } } = await supabaseClient.auth.getUser();
+        if (!user) {
+            throw new Error('You must be logged in to post a job.');
+        }
+        
         const { error } = await supabaseClient
             .from('job_postings')
             .insert([
                 {
-                    title: values.title,
-                    company_name: values.company_name,
+                    job_title: values.title, // Map to job_title column in DB
+                    employer_user_id: user.id, // Set to the current user's ID
                     location: values.location,
-                    description: values.description,
+                    job_description: values.description, // Map to job_description column in DB
                     application_instructions: values.application_instructions,
                 },
             ]);

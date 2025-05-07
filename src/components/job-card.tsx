@@ -12,12 +12,12 @@ interface JobCardProps {
 }
 
 function JobCard({ job }: JobCardProps) {
-  const timeAgo = job.created_at ? formatDistanceToNow(new Date(job.created_at), { addSuffix: true }) : '';
+  const timeAgo = job.posted_at ? formatDistanceToNow(new Date(job.posted_at), { addSuffix: true }) : '';
 
   return (
     <Card className="hover:shadow-lg transition-shadow duration-300 flex flex-col h-full border rounded-lg overflow-hidden">
       <CardHeader className="pb-3">
-        <CardTitle className="text-lg font-semibold text-primary truncate">{job.title}</CardTitle>
+        <CardTitle className="text-lg font-semibold text-primary truncate">{job.job_title}</CardTitle>
         <CardDescription className="flex items-center text-sm text-muted-foreground gap-2 pt-1">
           <Building className="w-4 h-4 flex-shrink-0" />
           <span className='truncate'>{job.company_name}</span>
@@ -52,7 +52,7 @@ function JobCard({ job }: JobCardProps) {
         )}
          {/* Description Snippet */}
         <p className="text-sm line-clamp-3 text-foreground/80">
-          {job.description}
+          {job.job_description}
         </p>
          {/* Posted Time */}
          {timeAgo && (

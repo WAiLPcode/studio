@@ -33,6 +33,7 @@ export default function Home() {
   const pathname = usePathname(); // Track current path for memoization
   const [jobs, setJobs] = useState<JobPosting[]>([]);
   const [locationFilter, setLocationFilter] = useState('');
+  const [titleFilter, setTitleFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,13 +41,18 @@ export default function Home() {
     setLoading(true);
       setError(null);
       try {
-          const lowerCaseFilter = locationFilter.toLowerCase().trim();
+          const lowerCaseLocation = locationFilter.toLowerCase().trim();
+          const lowerCaseTitle = titleFilter.toLowerCase().trim();
           let query = supabaseClient
               ?.from('job_postings')
               .select('*')
               .order('updated_at', { ascending: false });
-          if (lowerCaseFilter !== '') {
-              query = query?.ilike('location', `%${lowerCaseFilter}%`);
+          
+          if (lowerCaseLocation !== '') {
+              query = query?.ilike('location', `%${lowerCaseLocation}%`);
+          }
+          if (lowerCaseTitle !== '') {
+              query = query?.ilike('job_title', `%${lowerCaseTitle}%`);
           }
 
           const { data, error } = await query!;
@@ -63,7 +69,7 @@ export default function Home() {
       } finally {
           setLoading(false);
       }
-  }, [locationFilter]);
+  }, [locationFilter, titleFilter]);
 
 
   useEffect(() => {
@@ -99,13 +105,13 @@ export default function Home() {
         </div>
       );
     }
-  }, [filteredJobs, jobs.length, locationFilter, handleClearFilter]);
+  }, [filteredJobs, jobs.length, locationFilter, titleFilter, handleClearFilter]);
 
   // Apply filter when locationFilter changes (with debounce)
     useEffect(() => {
         const timeoutId = setTimeout(() => fetchJobs(), 300); // Debounce by 300ms
         return () => clearTimeout(timeoutId); 
-    }, [locationFilter, fetchJobs]);
+    }, [locationFilter, titleFilter, fetchJobs]);
 
 
   // Loading skeleton component to prevent re-renders
@@ -130,15 +136,38 @@ export default function Home() {
     <div className="space-y-8">
       <h1 className="text-3xl font-bold text-center text-primary">Find Your Next Opportunity</h1>
 
-      <div className="flex items-center gap-2 max-w-lg mx-auto">
-        <div className="relative flex-grow">
+      <div className="flex flex-col sm:flex-row items-center gap-4 max-w-3xl mx-auto">
+        <div className="relative flex-grow w-full">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+                type="text"
+                placeholder="Search by job title"
+                value={titleFilter}
+                onChange={(e) => setTitleFilter(e.target.value)}
+                className="pl-10 pr-10"
+                aria-label="Search jobs by title"
+            />
+            {titleFilter && (
+                <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 transform -translate-y-1/2 h-7 w-7 text-muted-foreground hover:bg-transparent"
+                onClick={() => setTitleFilter('')}
+                aria-label="Clear title filter"
+                >
+                <X className="h-4 w-4" />
+                </Button>
+            )}
+        </div>
+
+        <div className="relative flex-grow w-full">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
                 type="text"
                 placeholder="Filter by location (e.g., New York, Remote)"
                 value={locationFilter}
                 onChange={(e) => setLocationFilter(e.target.value)}
-                className="pl-10 pr-10" // Add padding for icons
+                className="pl-10 pr-10"
                 aria-label="Filter jobs by location"
             />
             {locationFilter && (
@@ -153,7 +182,6 @@ export default function Home() {
                 </Button>
             )}
         </div>
-
       </div>
 
       {error && (
