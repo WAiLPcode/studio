@@ -101,7 +101,7 @@ export default function RegisterPage() {
       
       toast({
         title: "Registration successful!",
-        description: "Your job seeker account has been created."
+        description: "Please check your email to verify your account."
       });
 
       // Redirect will happen automatically in the useEffect above
@@ -127,7 +127,7 @@ export default function RegisterPage() {
       
       toast({
         title: "Registration successful!",
-        description: "Your employer account has been created."
+        description: "Please check your email to verify your account."
       });
 
       // Redirect will happen automatically in the useEffect above
