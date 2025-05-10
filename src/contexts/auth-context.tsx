@@ -26,7 +26,7 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-export function AuthProvider({ children }: { children: ReactNode }) {
+export function AuthProvider({ children }: { children: ReactNode }): JSX.Element {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isRateLimited, setIsRateLimited] = useState(false);
@@ -39,7 +39,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const router = useRouter(); // Assuming router is used or will be
   // Use the imported supabaseClient directly
   useEffect(() => {
-    // For this prototype, we'll check localStorage
+    // Check for stored user in localStorage
     const storedUser = localStorage.getItem('jobfinder_user');
     if (storedUser) {
       try {
@@ -50,6 +50,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     
+    // Set up Supabase auth state listener
+    if (supabaseClient) {
+      const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+        if (event === 'SIGNED_IN' && session?.user) {
+          // Fetch user role from the users table
+          const { data: userData, error: userError } = await supabaseClient
+            .from('users')
+            .select('role')
+            .eq('id', session.user.id)
+            .single();
+
+          if (!userError && userData) {
+            const userObj: User = {
+              id: session.user.id,
+              email: session.user.email || '',
+              role: userData.role as UserRole,
+            };
+            setUser(userObj);
+            localStorage.setItem('jobfinder_user', JSON.stringify(userObj));
+          }
+        } else if (event === 'SIGNED_OUT') {
+          setUser(null);
+          localStorage.removeItem('jobfinder_user');
+        }
+      });
+
+      return () => {
+        subscription.unsubscribe();
+      };
+    }
+    
     // Check for stored rate limit information
     const storedRateLimit = localStorage.getItem('jobfinder_rate_limit');
     if (storedRateLimit) {
@@ -57,12 +88,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const rateLimitData = JSON.parse(storedRateLimit);
         if (rateLimitData.limited) {
           const resetTime = new Date(rateLimitData.resetTime);
-          // If the reset time is in the future, maintain the rate limit
           if (resetTime > new Date()) {
             setIsRateLimited(true);
             setRateLimitResetTime(resetTime);
           } else {
-            // Reset rate limit if cooldown period has passed
             localStorage.removeItem('jobfinder_rate_limit');
           }
         }
@@ -155,6 +184,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       if (userError) {
         console.error('Error fetching user role:', userError);
+        
+        // User might exist in Auth but not in the users table
+        // This can happen if they verified email but the callback didn't create the user record
+        // Let's create a basic user record now
+        const { error: insertError } = await supabaseClient.from('users').insert([{ 
+          id: data.user.id, 
+          email: data.user.email || '', 
+          password_hash: 'verified_via_login', 
+          role: 'job_seeker', // Default role
+        }]);
+        
+        if (insertError) {
+          console.error('Error creating user record during login:', insertError);
+          throw new Error('Error creating user profile. Please contact support.');
+        }
+        
+        // Set default role for the user
+        const userObj: User = {
+          id: data.user.id,
+          email: data.user.email || '',
+          role: 'job_seeker',
+        };
+        
+        setUser(userObj);
+        localStorage.setItem('jobfinder_user', JSON.stringify(userObj));
+        return;
       }
 
       const userObj: User = {
@@ -181,6 +236,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // VerificationPopup and handleVerification moved to AuthProvider scope
   const handleVerification = async () => {
+    // This function can be greatly simplified since we're not handling manual verification anymore
     if (!registrationUser) {
       console.error('No user data available for verification');
       toast({
@@ -190,132 +246,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       });
       return;
     }
-    try {
-      if (!supabaseClient) {
-          toast({
-            title: "Database Error",
-            description: "Database connection not available. Please try again later.",
-            variant: "destructive",
-          });
-          throw new Error('Database connection not available');
-      }
-      const { error: verifyError } = await supabaseClient.auth.verifyOtp({
-        email: registrationUser.email, // Use email from stored registrationUser
-        token: verificationCode,
-        type: 'signup'
-      });
-
-      if (verifyError) {
-        // The catch block will handle toasting this error
-        throw verifyError;
-      }
-
-      // Get the verified user from Supabase auth
-      const { data: { user: verifiedUser } } = await supabaseClient.auth.getUser();
-
-      if (!verifiedUser) {
-        throw new Error('Verification successful, but failed to retrieve user details.');
-      }
-
-      // Insert user data into the 'users' table now that email is verified
-      const { error: insertError } = await supabaseClient.from('users').insert([{
-        id: verifiedUser.id,
-        email: verifiedUser.email, // Use the email from the verified Supabase user
-        password_hash: registrationUser.password, // As per original comment, this was the previous behavior
-        role: registrationUser.role,
-        first_name: registrationUser.firstName,
-        last_name: registrationUser.lastName,
-        company_name: registrationUser.companyName,
-        company_website: registrationUser.companyWebsite,
-        company_description: registrationUser.companyDescription,
-        industry: registrationUser.industry
-      }]);
-
-      if (insertError) {
-        console.error('Insert error details into users table:', insertError);
-        throw new Error(`Failed to save user details: ${insertError.message}`);
-      }
-
-      // Create user profile after successful verification
-      const role = registrationUser.role as UserRole;
-      // Consolidate all data for profile creation, ensuring verified email is used
-      const profileDataForCreation = { 
-        ...registrationUser, 
-        email: verifiedUser.email 
-      };
-
-      if (role === 'employer') {
-        await createProfile(verifiedUser.id, profileDataForCreation, 'employer_profiles');
-      } else if (role === 'job_seeker') {
-        await createProfile(verifiedUser.id, profileDataForCreation, 'job_seeker_profiles');
-      } else {
-        console.error(`Unsupported role for profile creation: ${role}`);
-        throw new Error('User role not supported for profile creation.');
-      }
-
-      // Update the main user state in AuthContext
-      const newUser: User = {
-        id: verifiedUser.id,
-        email: verifiedUser.email || '', // Ensure email is not null
-        role: role,
-      };
-      setUser(newUser);
-      localStorage.setItem('jobfinder_user', JSON.stringify(newUser));
-
-      setShowVerificationPopup(false);
-      setVerificationCode(''); // Clear verification code
-      setRegistrationUser(null); // Clear temporary registration data
-
-      toast({
-        title: "Account Verified",
-        description: "Your account has been successfully verified and your profile created.",
-        variant: "default",
-      });
-
-    } catch (error: any) {
-      console.error('Verification process failed:', error);
-      toast({
-        title: "Verification Failed",
-        description: error.message || "An unexpected error occurred during verification. Please try again.",
-        variant: "destructive",
-      });
-      throw error; // Re-throw error to allow calling components to handle if needed
-    }
+    // Simply close the popup
+    setShowVerificationPopup(false);
+    setRegistrationUser(null);
   };
 
-  const VerificationPopup = () => (
-    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-      <div className="bg-white p-6 rounded-lg shadow-xl">
-        <h2 className="text-xl font-bold mb-4">Email Verification</h2>
-        <p className="mb-4">Please enter the verification code sent to {registrationUser?.email || 'your email'}</p>
-        <input
-          type="text"
-          value={verificationCode}
-          onChange={(e) => setVerificationCode(e.target.value)}
-          className="border p-2 w-full mb-4"
-          placeholder="Verification code"
-        />
-        <div className="flex justify-end">
-          <button
-            onClick={() => {
-              setShowVerificationPopup(false);
-              setVerificationCode(''); // Clear code if popup is closed manually
-              // Optionally, clear registrationUser if abandoning verification
-            }}
-            className="bg-gray-300 text-gray-700 px-4 py-2 rounded hover:bg-gray-400 mr-2"
-          >
-            Cancel
-          </button>
-          <button
-            onClick={handleVerification}
-            className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600"
-          >
-            Verify
-          </button>
+  const VerificationPopup = () => {
+    // Auto-dismiss the popup after 7 seconds
+    useEffect(() => {
+      const timer = setTimeout(() => {
+        setShowVerificationPopup(false);
+      }, 7000);
+      
+      return () => clearTimeout(timer);
+    }, []);
+    
+    return (
+      <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div className="bg-white p-6 rounded-lg shadow-xl max-w-md">
+          <h2 className="text-xl font-bold mb-4">Verify Your Email</h2>
+          <p className="mb-4">
+            We've sent a verification link to <span className="font-semibold">{registrationUser?.email}</span>.
+          </p>
+          <p className="mb-4">
+            Please check your email and click on the verification link to complete your registration.
+          </p>
+          <p className="text-sm text-gray-500 mb-4">
+            This message will auto-dismiss in 7 seconds.
+          </p>
+          <div className="flex justify-end">
+            <button
+              onClick={() => {
+                setShowVerificationPopup(false);
+                setRegistrationUser(null);
+              }}
+              className="bg-primary text-primary-foreground px-4 py-2 rounded hover:bg-primary/90"
+            >
+              Close
+            </button>
+          </div>
         </div>
       </div>
-    </div>
-  );
+    );
+  };
 
   const register = async (userData: any, role: UserRole) => {
     if (!supabaseClient) throw new Error('Database connection not available');
@@ -410,6 +383,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Store userData and role for verification step
       setRegistrationUser({ ...userData, role }); 
       setShowVerificationPopup(true); // Show verification popup
+
+      // Store registration data in sessionStorage so it can be retrieved after verification
+      sessionStorage.setItem('pending_registration', JSON.stringify({
+        id: signedUpUser.id,
+        email: signedUpUser.email,
+        role: role,
+        firstName: userData.firstName || '',
+        lastName: userData.lastName || '',
+        companyName: userData.companyName || '',
+        companyWebsite: userData.companyWebsite || '',
+        companyDescription: userData.companyDescription || '',
+        industry: userData.industry || ''
+      }));
 
       // The rest of the logic (inserting into 'users' table, creating profile, setUser)
       // will now happen inside `handleVerification` after OTP is confirmed.
@@ -554,7 +540,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     isRateLimited
   }
 
-  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
+  // Render verification popup if the flag is set
+  return (
+    <AuthContext.Provider value={value}>
+      {children}
+      {showVerificationPopup && <VerificationPopup />}
+    </AuthContext.Provider>
+  );
 }
 
 export function useAuth() {

@@ -12,37 +12,35 @@ CREATE POLICY "Users can view own data" ON public.users
     FOR SELECT
     USING (id = auth.uid());
 
--- Create policy for users to not update their own data.
+-- Create policy for users to update their own data
 CREATE POLICY "Users can update own data" ON public.users
     FOR UPDATE
-    USING (false);
-DROP POLICY IF EXISTS "Anyone can insert users" ON public.users;
-CREATE POLICY "Anyone can insert into users" ON public.users
+    USING (id = auth.uid());
+
+-- Create policy for inserting new users
+CREATE POLICY "Anyone can insert users" ON public.users
     FOR INSERT
     WITH CHECK (true);
 
+-- 2. Job Seeker Profiles Table
+ALTER TABLE public.job_seeker_profiles ENABLE ROW LEVEL SECURITY;
 
--- 2. User Profiles Table
-ALTER TABLE public.user_profiles ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Users can view own profile" ON public.user_profiles;
-DROP POLICY IF EXISTS "Users can update own profile" ON public.user_profiles;
-DROP POLICY IF EXISTS "Users can insert own profile" ON public.user_profiles;
+DROP POLICY IF EXISTS "Users can view own job seeker profile" ON public.job_seeker_profiles;
+DROP POLICY IF EXISTS "Users can update own job seeker profile" ON public.job_seeker_profiles;
+DROP POLICY IF EXISTS "Users can insert own job seeker profile" ON public.job_seeker_profiles;
 
 -- Create policy for users to select their own profile
-CREATE POLICY "Users can view own profile" ON public.user_profiles
+CREATE POLICY "Users can view own job seeker profile" ON public.job_seeker_profiles
     FOR SELECT
     USING (user_id = auth.uid());
 
-
 -- Create policy for users to update their own profile
-CREATE POLICY "Users can update own profile" ON public.user_profiles
+CREATE POLICY "Users can update own job seeker profile" ON public.job_seeker_profiles
     FOR UPDATE
     USING (user_id = auth.uid());
 
 -- Create policy for users to insert their own profile
-
-CREATE POLICY "Users can insert own profile" ON public.user_profiles
+CREATE POLICY "Users can insert own job seeker profile" ON public.job_seeker_profiles
     FOR INSERT
     WITH CHECK (user_id = auth.uid());
 
@@ -53,20 +51,71 @@ DROP POLICY IF EXISTS "Users can view own employer profile" ON public.employer_p
 DROP POLICY IF EXISTS "Users can update own employer profile" ON public.employer_profiles;
 DROP POLICY IF EXISTS "Users can insert own employer profile" ON public.employer_profiles;
 
--- Create policy for users to select their own employer profile
+-- Create policy for users to select their own profile
 CREATE POLICY "Users can view own employer profile" ON public.employer_profiles
     FOR SELECT
     USING (user_id = auth.uid());
 
+-- Create policy for users to update their own profile
 CREATE POLICY "Users can update own employer profile" ON public.employer_profiles
     FOR UPDATE
     USING (user_id = auth.uid());
 
+-- Create policy for users to insert their own profile
 CREATE POLICY "Users can insert own employer profile" ON public.employer_profiles
     FOR INSERT
     WITH CHECK (user_id = auth.uid());
 
--- 4. Skills Table (publicly readable, but restricted writes)
+-- 4. Job Postings Table
+ALTER TABLE public.job_postings ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "Anyone can view active job postings" ON public.job_postings;
+DROP POLICY IF EXISTS "Employers can insert job postings" ON public.job_postings;
+DROP POLICY IF EXISTS "Employers can update their job postings" ON public.job_postings;
+DROP POLICY IF EXISTS "Employers can delete their job postings" ON public.job_postings;
+
+-- Create policy for viewing active job postings
+CREATE POLICY "Anyone can view active job postings" ON public.job_postings
+    FOR SELECT
+    USING (is_active = true);
+
+-- Create policy for employers to insert job postings
+CREATE POLICY "Employers can insert job postings" ON public.job_postings
+    FOR INSERT
+    WITH CHECK (
+        auth.uid() IS NOT NULL AND
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE id = auth.uid()
+            AND role = 'employer'
+        )
+    );
+
+-- Create policy for employers to update their job postings
+CREATE POLICY "Employers can update their job postings" ON public.job_postings
+    FOR UPDATE
+    USING (
+        auth.uid() = employer_user_id AND
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE id = auth.uid()
+            AND role = 'employer'
+        )
+    );
+
+-- Create policy for employers to delete their job postings
+CREATE POLICY "Employers can delete their job postings" ON public.job_postings
+    FOR DELETE
+    USING (
+        auth.uid() = employer_user_id AND
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE id = auth.uid()
+            AND role = 'employer'
+        )
+    );
+
+-- 5. Skills Table (publicly readable, but restricted writes)
 ALTER TABLE public.skills ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "Anyone can view skills" ON public.skills;
@@ -82,7 +131,7 @@ CREATE POLICY "Authenticated users can insert skills" ON public.skills
     FOR INSERT
     WITH CHECK (auth.role() = 'authenticated');
 
--- 5. User Skills Table
+-- 6. User Skills Table
 ALTER TABLE public.user_skills ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS "Users can delete own skills" ON public.user_skills;
 DROP POLICY IF EXISTS "Users can view own skills" ON public.user_skills;
@@ -103,38 +152,6 @@ CREATE POLICY "Users can insert own skills" ON public.user_skills
 CREATE POLICY "Users can delete own skills" ON public.user_skills
     FOR DELETE
     USING (user_id = auth.uid());
-
--- 6. Job Postings Table
-ALTER TABLE public.job_postings ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "Anyone can view active job postings" ON public.job_postings;
-DROP POLICY IF EXISTS "Employers can view own job postings" ON public.job_postings;
-DROP POLICY IF EXISTS "Employers can insert own job postings" ON public.job_postings;
-DROP POLICY IF EXISTS "Employers can update own job postings" ON public.job_postings;
-DROP POLICY IF EXISTS "Employers can delete own job postings" ON public.job_postings;
--- Create policy for anyone to view active job postings
-CREATE POLICY "Anyone can view active job postings" ON public.job_postings
-    USING (is_active = true);
-
--- Create policy for employers to view all their own job postings (active or inactive)
-CREATE POLICY "Employers can view own job postings" ON public.job_postings
-    FOR SELECT
-    USING (employer_user_id = auth.uid());
-
--- Create policy for employers to insert their own job postings
-CREATE POLICY "Employers can insert own job postings" ON public.job_postings
-    FOR INSERT
-    WITH CHECK (employer_user_id = auth.uid());
-
--- Create policy for employers to update their own job postings
-CREATE POLICY "Employers can update own job postings" ON public.job_postings
-    FOR UPDATE
-    USING (employer_user_id = auth.uid());
-
--- Create policy for employers to delete their own job postings
-CREATE POLICY "Employers can delete own job postings" ON public.job_postings
-    FOR DELETE
-    USING (employer_user_id = auth.uid());
 
 -- 7. Job Applications Table
 ALTER TABLE public.job_applications ENABLE ROW LEVEL SECURITY;

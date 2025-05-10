@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
@@ -45,7 +45,8 @@ const employerSchema = commonUserSchema.extend({
   path: ["confirmPassword"],
 });
 
-export default function RegisterPage() {
+// Main registration form component
+function RegisterForm() {
   const [activeTab, setActiveTab] = useState<string>('job-seeker');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
@@ -265,7 +266,7 @@ export default function RegisterPage() {
                         <FormLabel>Bio (Optional)</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Tell employers about your experience and skills" 
+                            placeholder="A short description about your skills and experience..." 
                             className="resize-none" 
                             {...field} 
                           />
@@ -292,7 +293,7 @@ export default function RegisterPage() {
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
                 <Link href="/login" className="text-primary hover:underline">
-                  Log in
+                  Login
                 </Link>
               </p>
             </CardFooter>
@@ -318,7 +319,7 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Company Name</FormLabel>
                         <FormControl>
-                          <Input placeholder="Acme Inc." {...field} />
+                          <Input placeholder="Acme Corporation" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -332,7 +333,7 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Email</FormLabel>
                         <FormControl>
-                          <Input type="email" placeholder="hr@acmeinc.com" {...field} />
+                          <Input type="email" placeholder="contact@acme.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -374,7 +375,7 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Company Website (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="https://www.acmeinc.com" {...field} />
+                          <Input placeholder="https://acme.com" {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -388,7 +389,7 @@ export default function RegisterPage() {
                       <FormItem>
                         <FormLabel>Industry (Optional)</FormLabel>
                         <FormControl>
-                          <Input placeholder="Technology" {...field} />
+                          <Input placeholder="Technology, Healthcare, etc." {...field} />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -403,7 +404,7 @@ export default function RegisterPage() {
                         <FormLabel>Company Description (Optional)</FormLabel>
                         <FormControl>
                           <Textarea 
-                            placeholder="Tell job seekers about your company" 
+                            placeholder="A brief description of your company..." 
                             className="resize-none" 
                             {...field} 
                           />
@@ -430,7 +431,7 @@ export default function RegisterPage() {
               <p className="text-sm text-muted-foreground">
                 Already have an account?{' '}
                 <Link href="/login" className="text-primary hover:underline">
-                  Log in
+                  Login
                 </Link>
               </p>
             </CardFooter>
@@ -438,5 +439,28 @@ export default function RegisterPage() {
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+// Main page component wrapping the registration form in Suspense
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-md mx-auto py-10">
+        <Card>
+          <CardHeader>
+            <CardTitle>Register for JobFinder</CardTitle>
+            <CardDescription>
+              Loading...
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }

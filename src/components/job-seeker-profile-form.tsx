@@ -1,6 +1,6 @@
 "use client";
 import React, { useState, useEffect, useCallback, ReactNode } from 'react';
-import { useForm, FieldValues, Control, UseFormReturn } from 'react-hook-form';
+import { useForm, FieldValues, Control } from 'react-hook-form';
 import {
   Form,
   FormField,
@@ -8,10 +8,12 @@ import {
   FormLabel,
   FormDescription,
   FormMessage,
+  FormControl
 } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/auth-context';
+
 interface JobSeekerProfileFormProps {
   
 }
@@ -92,6 +94,13 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
     setError(false);
     setMessage('');
 
+    if (!user) {
+      setError(true);
+      setMessage('User not authenticated');
+      setIsSubmitting(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/profile/job-seeker', {
         method: 'POST',
@@ -120,7 +129,7 @@ const JobSeekerProfileForm: React.FC<JobSeekerProfileFormProps> = () : ReactNode
 
   return (
     isLoading ? <p>Loading...</p> :
-    <Form>
+    <Form {...form}>
       <form onSubmit={handleSubmit} className="space-y-4">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <FormField

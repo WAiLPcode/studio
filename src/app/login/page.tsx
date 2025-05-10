@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Loader2 } from 'lucide-react';
 import Link from 'next/link';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { CheckCircle, AlertCircle } from 'lucide-react';
 
 // Login form schema
 const loginSchema = z.object({
@@ -20,11 +22,28 @@ const loginSchema = z.object({
   password: z.string().min(1, { message: 'Password is required' }),
 });
 
-export default function LoginPage() {
+// This component will use search params and needs to be wrapped in Suspense
+function LoginForm() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { toast } = useToast();
   const { login, user } = useAuth();
+
+  // Get message from URL if present
+  const message = searchParams.get('message');
+  const status = searchParams.get('status');
+
+  // Display message toast if it exists
+  useEffect(() => {
+    if (message) {
+      toast({
+        title: status === 'error' ? 'Error' : 'Success',
+        description: message,
+        variant: status === 'error' ? 'destructive' : 'default',
+      });
+    }
+  }, [message, status, toast]);
 
   // Redirect if user is already logged in
   useEffect(() => {
@@ -72,6 +91,22 @@ export default function LoginPage() {
 
   return (
     <div className="max-w-md mx-auto py-10">
+      {message && (
+        <Alert className="mb-4" variant={status === 'error' ? 'destructive' : 'default'}>
+          {status === 'error' ? (
+            <AlertCircle className="h-4 w-4" />
+          ) : (
+            <CheckCircle className="h-4 w-4" />
+          )}
+          <AlertTitle>
+            {status === 'error' ? 'Error' : 'Success'}
+          </AlertTitle>
+          <AlertDescription>
+            {message}
+          </AlertDescription>
+        </Alert>
+      )}
+      
       <Card>
         <CardHeader>
           <CardTitle>Login to JobFinder</CardTitle>
@@ -133,5 +168,28 @@ export default function LoginPage() {
         </CardFooter>
       </Card>
     </div>
+  );
+}
+
+// Main page component that wraps LoginForm in Suspense
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-md mx-auto py-10">
+        <Card>
+          <CardHeader>
+            <CardTitle>Login to JobFinder</CardTitle>
+            <CardDescription>
+              Loading...
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center py-8">
+            <Loader2 className="h-8 w-8 animate-spin" />
+          </CardContent>
+        </Card>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }
