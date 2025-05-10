@@ -621,3 +621,35 @@ AFTER INSERT OR UPDATE ON users
 FOR EACH ROW
 WHEN (NEW.role = 'job_seeker')
 EXECUTE FUNCTION sync_user_data_to_job_seeker_profiles();
+
+-- Create a table to store pending registrations
+CREATE TABLE IF NOT EXISTS public.pending_registrations (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email TEXT NOT NULL,
+  role TEXT NOT NULL,
+  first_name TEXT,
+  last_name TEXT,
+  company_name TEXT,
+  company_website TEXT,
+  company_description TEXT,
+  industry TEXT,
+  headline TEXT,
+  bio TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now(),
+  CONSTRAINT pending_registrations_email_key UNIQUE (email)
+);
+
+-- Add RLS policy for pending registrations
+ALTER TABLE public.pending_registrations ENABLE ROW LEVEL SECURITY;
+
+-- Allow public access to insert pending registrations (during signup)
+CREATE POLICY "Anyone can insert pending registration" ON public.pending_registrations
+  FOR INSERT WITH CHECK (true);
+
+-- Only allow service roles and authenticated users to select from pending_registrations
+CREATE POLICY "Service role can select pending registrations" ON public.pending_registrations
+  FOR SELECT USING (auth.role() = 'service_role' OR email = auth.email());
+
+-- Only allow service roles to delete pending registrations
+CREATE POLICY "Service role can delete pending registrations" ON public.pending_registrations
+  FOR DELETE USING (auth.role() = 'service_role' OR email = auth.email());

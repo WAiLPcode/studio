@@ -53,7 +53,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
     // Set up Supabase auth state listener
     if (supabaseClient) {
       const { data: { subscription } } = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-        if (event === 'SIGNED_IN' && session?.user) {
+        if (event === 'SIGNED_IN' && session?.user && supabaseClient) {
           // Fetch user role from the users table
           const { data: userData, error: userError } = await supabaseClient
             .from('users')
@@ -185,14 +185,33 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       if (userError) {
         console.error('Error fetching user role:', userError);
         
-        // User might exist in Auth but not in the users table
-        // This can happen if they verified email but the callback didn't create the user record
-        // Let's create a basic user record now
+        // Check if there's any profile for this user to determine their role
+        const { data: employerProfile } = await supabaseClient
+          .from('employer_profiles')
+          .select('user_id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+          
+        const { data: jobSeekerProfile } = await supabaseClient
+          .from('job_seeker_profiles')
+          .select('user_id')
+          .eq('user_id', data.user.id)
+          .maybeSingle();
+        
+        // Determine the role based on existing profiles
+        let userRole: UserRole = 'job_seeker'; // Default
+        if (employerProfile) {
+          userRole = 'employer';
+        } else if (jobSeekerProfile) {
+          userRole = 'job_seeker';
+        }
+        
+        // Create a user record with the determined role
         const { error: insertError } = await supabaseClient.from('users').insert([{ 
           id: data.user.id, 
           email: data.user.email || '', 
           password_hash: 'verified_via_login', 
-          role: 'job_seeker', // Default role
+          role: userRole
         }]);
         
         if (insertError) {
@@ -200,11 +219,11 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
           throw new Error('Error creating user profile. Please contact support.');
         }
         
-        // Set default role for the user
+        // Set the determined role for the user
         const userObj: User = {
           id: data.user.id,
           email: data.user.email || '',
-          role: 'job_seeker',
+          role: userRole,
         };
         
         setUser(userObj);
@@ -293,9 +312,7 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
   const register = async (userData: any, role: UserRole) => {
     if (!supabaseClient) throw new Error('Database connection not available');
     if (!role) throw new Error('User role is required');
-    // Removed useState calls for currentUser, verificationCode, showVerificationPopup
-    // Removed VerificationPopup and handleVerification definitions from here
-
+    
     // Check if we're currently rate limited
     if (isRateLimited && rateLimitResetTime) {
       const timeRemaining = Math.ceil((rateLimitResetTime.getTime() - new Date().getTime()) / 60000); // minutes
@@ -384,29 +401,33 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
       setRegistrationUser({ ...userData, role }); 
       setShowVerificationPopup(true); // Show verification popup
 
-      // Store registration data in sessionStorage so it can be retrieved after verification
-      sessionStorage.setItem('pending_registration', JSON.stringify({
-        id: signedUpUser.id,
-        email: signedUpUser.email,
+      // Store the registration data in the pending_registrations table for later retrieval
+      const pendingRegistrationData = {
+        email: userData.email,
         role: role,
-        firstName: userData.firstName || '',
-        lastName: userData.lastName || '',
-        companyName: userData.companyName || '',
-        companyWebsite: userData.companyWebsite || '',
-        companyDescription: userData.companyDescription || '',
-        industry: userData.industry || ''
-      }));
-
-      // The rest of the logic (inserting into 'users' table, creating profile, setUser)
-      // will now happen inside `handleVerification` after OTP is confirmed.
-      // We don't set the user in AuthContext immediately after signUp anymore.
-      // We wait for email verification.
-
-      // User insertion into 'users' table moved to handleVerification.
+        first_name: userData.firstName || '',
+        last_name: userData.lastName || '',
+        company_name: userData.companyName || '',
+        company_website: userData.companyWebsite || '',
+        company_description: userData.companyDescription || '',
+        industry: userData.industry || '',
+        headline: userData.headline || '',
+        bio: userData.bio || '',
+        created_at: new Date().toISOString()
+      };
+      
+      // Add the data to Supabase pending_registrations table
+      const { error: pendingRegistrationError } = await supabaseClient
+        .from('pending_registrations')
+        .insert([pendingRegistrationData]);
         
-      // No longer setting user here, it will be set after verification
-      // setUser(newUser);
-      // localStorage.setItem('jobfinder_user', JSON.stringify(newUser));
+      if (pendingRegistrationError) {
+        console.error('Error storing pending registration:', pendingRegistrationError);
+        // Continue anyway to show the verification popup
+      }
+      
+      // Also store in sessionStorage as a backup
+      sessionStorage.setItem('pending_registration', JSON.stringify(pendingRegistrationData));
     } catch (error: any) {
         if (error instanceof TypeError) {
             throw new Error('Network error occurred.');
@@ -462,26 +483,20 @@ export function AuthProvider({ children }: { children: ReactNode }): JSX.Element
                 // Continue with creating the user in our database
                 const currentUser = signInData.user;
                 
-                // Insert into users table
+                // Insert into users table with the requested role
                 const { error: insertError } = await supabaseClient.from('users').insert([{ 
                   id: currentUser.id, 
                   email: currentUser.email, 
-                  password_hash: userData.password || '', // Added default for password_hash as well, though its direct storage is questionable
-                  role: role, 
-                  first_name: userData.firstName || '', 
-                  last_name: userData.lastName || '', 
-                  company_name: userData.companyName || '', 
-                  company_website: userData.companyWebsite || '', 
-                  company_description: userData.companyDescription || '', 
-                  industry: userData.industry || '' 
+                  password_hash: 'verified_via_login', 
+                  role: role 
                 }]);
                 
                 if (insertError) {
                   console.error('Insert error details:', insertError);
-                  throw new Error('Failed to add user to table');
+                  throw new Error('Failed to add user to database');
                 }
                 
-                // Create profile
+                // Create the appropriate profile
                 try {
                   if (role === 'job_seeker') {
                     await createProfile(currentUser.id, userData, 'job_seeker_profiles');
